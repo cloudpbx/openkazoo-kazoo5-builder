@@ -18,3 +18,4 @@ Thumbs.db
 *.asc.private
 *.gpg
 gpg-agent.*
+tests/fixtures/gpg/
