@@ -1,0 +1,23 @@
+[Unit]
+Description=Kazoo telephony platform
+Documentation=https://github.com/cloudpbx/openkazoo-kazoo5-builder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=kazoo
+Group=kazoo
+EnvironmentFile=-/etc/default/kazoo
+WorkingDirectory=/var/lib/kazoo
+ExecStart=/opt/kazoo/bin/kazoo start
+ExecStop=/opt/kazoo/bin/kazoo stop
+Restart=on-failure
+RestartSec=10s
+LimitNOFILE=65535
+# Hardening (conservative defaults; tighten in a later phase)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

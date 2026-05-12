@@ -1,0 +1,3 @@
+# Type Path             Mode  User   Group  Age  Argument
+d     /var/lib/kazoo    0750  kazoo  kazoo  -    -
+d     /var/log/kazoo    0750  kazoo  kazoo  -    -
