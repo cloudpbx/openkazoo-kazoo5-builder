@@ -1,0 +1,20 @@
+# Build artifacts
+build/
+_rel/
+*.deb
+*.rpm
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor noise
+*.swp
+*~
+.vscode/
+.idea/
+
+# Secrets — never commit
+*.asc.private
+*.gpg
+gpg-agent.*
