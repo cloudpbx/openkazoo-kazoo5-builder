@@ -75,7 +75,9 @@ publish:  ## Build apt + yum repos under build/repo/ for both targets (assumes b
 
 .PHONY: test
 test:  ## Run bats unit tests
-	./tests/bats/bin/bats tests/unit/
+	@# Unset exported vars so build.sh validation tests can assert "unset" paths.
+	env -u KAZOO_VERSION -u OTP_VERSION -u REBAR_VERSION -u PKG_REVISION -u TARGET \
+	  ./tests/bats/bin/bats tests/unit/
 
 .PHONY: clean
 clean:  ## Remove build outputs (does NOT remove docker images)
