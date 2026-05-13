@@ -28,40 +28,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       reprepro debsigs createrepo-c \
  && rm -rf /var/lib/apt/lists/*
 
-# kerl — build OTP from source, exact-version
-RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
-      https://raw.githubusercontent.com/kerl/kerl/master/kerl \
-      -o /usr/local/bin/kerl \
- && chmod +x /usr/local/bin/kerl
-
-# Build OTP. KERL_CONFIGURE_OPTIONS disables GUI/wx/odbc/jinterface (we
-# don't need them; saves build time and avoids X11 deps). javac/java are
-# also skipped. Build ~20-25 min on first run; subsequent rebuilds use
-# Docker layer cache.
-ENV KERL_BUILD_BACKEND=tarball
-ENV KERL_CONFIGURE_OPTIONS="\
-  --disable-debug \
-  --disable-silent-rules \
-  --without-javac \
-  --without-jinterface \
-  --without-megaco \
-  --without-et \
-  --without-odbc \
-  --enable-threads \
-  --enable-shared-zlib \
-  --enable-ssl=dynamic-ssl-lib \
-  --enable-smp-support \
-  --enable-kernel-poll \
-  --enable-dynamic-ssl-lib"
-# Build OTP from source via kerl. `kerl list releases` shows
-# major.minor branch summaries (e.g. "26.2 *"), not patch versions —
-# so don't try to grep-validate a specific patch beforehand. kerl
-# build accepts specific patch versions directly.
+# Build OTP from source directly (no kerl). Plain
+# ./configure && make && make install gives full diagnostic output.
+# Build takes ~15-20 min on a GHA runner.
 RUN set -ex \
- && export HOME=/root \
- && /usr/local/bin/kerl update releases \
- && /usr/local/bin/kerl build "${OTP_VERSION}" "${OTP_VERSION}" \
- && /usr/local/bin/kerl install "${OTP_VERSION}" "/opt/erlang/${OTP_VERSION}" \
+ && curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+      "https://github.com/erlang/otp/releases/download/OTP-${OTP_VERSION}/otp_src_${OTP_VERSION}.tar.gz" \
+      -o /tmp/otp.tar.gz \
+ && mkdir -p /tmp/otp_build \
+ && tar -xzf /tmp/otp.tar.gz -C /tmp/otp_build --strip-components=1 \
+ && rm /tmp/otp.tar.gz \
+ && cd /tmp/otp_build \
+ && ./configure \
+      --prefix="/opt/erlang/${OTP_VERSION}" \
+      --disable-debug \
+      --disable-silent-rules \
+      --without-javac \
+      --without-jinterface \
+      --without-megaco \
+      --without-et \
+      --without-odbc \
+      --enable-threads \
+      --enable-shared-zlib \
+      --enable-ssl=dynamic-ssl-lib \
+      --enable-smp-support \
+      --enable-kernel-poll \
+      --enable-dynamic-ssl-lib \
+ && make -j"$(nproc)" \
+ && make install \
+ && cd / && rm -rf /tmp/otp_build \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/erl"     /usr/local/bin/erl  \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/erlc"    /usr/local/bin/erlc \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/escript" /usr/local/bin/escript \

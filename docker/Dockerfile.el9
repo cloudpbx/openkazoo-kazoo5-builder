@@ -32,35 +32,34 @@ RUN dnf -y install dnf-plugins-core \
       createrepo_c rpm-sign gnupg2 \
  && dnf clean all
 
-# kerl — build OTP from source, exact-version
-RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
-      https://raw.githubusercontent.com/kerl/kerl/master/kerl \
-      -o /usr/local/bin/kerl \
- && chmod +x /usr/local/bin/kerl
-
-ENV KERL_BUILD_BACKEND=tarball
-ENV KERL_CONFIGURE_OPTIONS="\
-  --disable-debug \
-  --disable-silent-rules \
-  --without-javac \
-  --without-jinterface \
-  --without-megaco \
-  --without-et \
-  --without-odbc \
-  --enable-threads \
-  --enable-shared-zlib \
-  --enable-ssl=dynamic-ssl-lib \
-  --enable-smp-support \
-  --enable-kernel-poll \
-  --enable-dynamic-ssl-lib"
-# Build OTP from source via kerl. See debian-12 Dockerfile for why
-# there's no pre-check on the release list (kerl lists branches, not
-# patches — `kerl build` resolves the specific patch on its own).
+# Build OTP from source directly (no kerl). Plain
+# ./configure && make && make install gives full diagnostic output.
 RUN set -ex \
- && export HOME=/root \
- && /usr/local/bin/kerl update releases \
- && /usr/local/bin/kerl build "${OTP_VERSION}" "${OTP_VERSION}" \
- && /usr/local/bin/kerl install "${OTP_VERSION}" "/opt/erlang/${OTP_VERSION}" \
+ && curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+      "https://github.com/erlang/otp/releases/download/OTP-${OTP_VERSION}/otp_src_${OTP_VERSION}.tar.gz" \
+      -o /tmp/otp.tar.gz \
+ && mkdir -p /tmp/otp_build \
+ && tar -xzf /tmp/otp.tar.gz -C /tmp/otp_build --strip-components=1 \
+ && rm /tmp/otp.tar.gz \
+ && cd /tmp/otp_build \
+ && ./configure \
+      --prefix="/opt/erlang/${OTP_VERSION}" \
+      --disable-debug \
+      --disable-silent-rules \
+      --without-javac \
+      --without-jinterface \
+      --without-megaco \
+      --without-et \
+      --without-odbc \
+      --enable-threads \
+      --enable-shared-zlib \
+      --enable-ssl=dynamic-ssl-lib \
+      --enable-smp-support \
+      --enable-kernel-poll \
+      --enable-dynamic-ssl-lib \
+ && make -j"$(nproc)" \
+ && make install \
+ && cd / && rm -rf /tmp/otp_build \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/erl"     /usr/local/bin/erl  \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/erlc"    /usr/local/bin/erlc \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/escript" /usr/local/bin/escript \

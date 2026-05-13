@@ -14,15 +14,16 @@ load '../test_helper/common.bash'
   grep -q "^ARG REBAR_VERSION=" "$f"
 }
 
-@test "Dockerfile.el9 installs createrepo_c, rpm-sign, kerl (source-built OTP), and fpm" {
+@test "Dockerfile.el9 installs createrepo_c, rpm-sign, fpm, and source-builds OTP" {
   local f="$REPO_ROOT/docker/Dockerfile.el9"
   grep -q "createrepo_c" "$f"
   grep -q "rpm-sign" "$f"
   grep -q "fpm" "$f"
-  # OTP is compiled from source via kerl (was esl-erlang from
-  # packages.erlang-solutions.com before that server was retired by ESL).
-  grep -q "kerl" "$f"
-  grep -q "kerl build" "$f"
+  # OTP is compiled from source (was esl-erlang from
+  # packages.erlang-solutions.com before that server was retired).
+  grep -q "otp_src_" "$f"
+  grep -q "./configure" "$f"
+  grep -q "make install" "$f"
 }
 
 @test "Dockerfile.el9 sets WORKDIR /work and ENTRYPOINT to build.sh" {
