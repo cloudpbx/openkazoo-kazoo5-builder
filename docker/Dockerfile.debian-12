@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       autoconf zip unzip xsltproc libxslt1-dev \
       libssl-dev libncurses-dev \
       python3 ruby ruby-dev rubygems \
-      reprepro debsigs \
+      reprepro debsigs createrepo-c \
  && rm -rf /var/lib/apt/lists/*
 
 # Erlang Solutions apt source. The same .asc key works for Debian and Ubuntu repos.
