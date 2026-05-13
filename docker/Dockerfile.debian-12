@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1.6
+# Build image for Debian 12 (bookworm) packages.
+
+FROM debian:12-slim
+
+ARG OTP_VERSION=26.2.5
+ARG REBAR_VERSION=3.23.0
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Toolchain: build tools, packaging utilities, Ruby (for FPM), Erlang/OTP from ESL.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl gnupg git make build-essential \
+      autoconf zip unzip xsltproc libxslt1-dev \
+      libssl-dev libncurses-dev \
+      python3 ruby ruby-dev rubygems \
+      reprepro debsigs \
+ && rm -rf /var/lib/apt/lists/*
+
+# Erlang Solutions apt source. The same .asc key works for Debian and Ubuntu repos.
+RUN curl -fsSL https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc \
+      -o /usr/share/keyrings/erlang-solutions.asc \
+ && echo "deb [signed-by=/usr/share/keyrings/erlang-solutions.asc] \
+https://packages.erlang-solutions.com/debian bookworm contrib" \
+      > /etc/apt/sources.list.d/erlang-solutions.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends "esl-erlang=1:${OTP_VERSION}-1" \
+ && rm -rf /var/lib/apt/lists/*
+
+# rebar3 (matches kazoo5/.tool-versions). Fetch the pinned binary from upstream.
+RUN curl -fsSL "https://github.com/erlang/rebar3/releases/download/${REBAR_VERSION}/rebar3" \
+      -o /usr/local/bin/rebar3 \
+ && chmod +x /usr/local/bin/rebar3 \
+ && rebar3 --version
+
+# FPM for wrapping the relx tarball into .deb
+RUN gem install --no-document fpm:1.16.0
+
+WORKDIR /work
+ENTRYPOINT ["/work/scripts/build.sh"]
