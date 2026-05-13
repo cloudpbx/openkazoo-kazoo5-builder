@@ -1,0 +1,37 @@
+# syntax=docker/dockerfile:1.6
+# Build image for EL9 (Rocky 9 / Alma 9 / RHEL 9) packages.
+
+FROM rockylinux:9
+
+ARG OTP_VERSION=26.2.5
+ARG REBAR_VERSION=3.23.0
+
+# Toolchain: development tools, packaging utilities, Erlang/OTP from ESL.
+RUN dnf -y install dnf-plugins-core \
+ && dnf -y install epel-release \
+ && dnf -y groupinstall "Development Tools" \
+ && dnf -y install \
+      ca-certificates curl git make \
+      autoconf zip unzip libxslt \
+      openssl-devel ncurses-devel \
+      python3 ruby ruby-devel rubygems \
+      createrepo_c rpm-sign \
+ && dnf clean all
+
+# Erlang Solutions yum repo. Bootstrap RPM:
+RUN dnf -y install \
+      https://packages.erlang-solutions.com/rpm/centos/9/erlang-solutions-2.0-1.noarch.rpm \
+ && dnf -y install "esl-erlang-${OTP_VERSION}" \
+ && dnf clean all
+
+# rebar3
+RUN curl -fsSL "https://github.com/erlang/rebar3/releases/download/${REBAR_VERSION}/rebar3" \
+      -o /usr/local/bin/rebar3 \
+ && chmod +x /usr/local/bin/rebar3 \
+ && rebar3 --version
+
+# FPM
+RUN gem install --no-document fpm:1.16.0
+
+WORKDIR /work
+ENTRYPOINT ["/work/scripts/build.sh"]
