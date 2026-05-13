@@ -11,11 +11,11 @@ RUN dnf -y install dnf-plugins-core \
  && dnf -y install epel-release \
  && dnf -y groupinstall "Development Tools" \
  && dnf -y install \
-      ca-certificates curl git make \
+      ca-certificates git make \
       autoconf zip unzip libxslt \
       openssl-devel ncurses-devel \
       python3 ruby ruby-devel rubygems \
-      createrepo_c rpm-sign \
+      createrepo_c rpm-sign gnupg2 \
  && dnf clean all
 
 # Erlang Solutions yum repo. Bootstrap RPM:
@@ -25,7 +25,8 @@ RUN dnf -y install \
  && dnf clean all
 
 # rebar3
-RUN curl -fsSL "https://github.com/erlang/rebar3/releases/download/${REBAR_VERSION}/rebar3" \
+RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+      "https://github.com/erlang/rebar3/releases/download/${REBAR_VERSION}/rebar3" \
       -o /usr/local/bin/rebar3 \
  && chmod +x /usr/local/bin/rebar3 \
  && rebar3 --version

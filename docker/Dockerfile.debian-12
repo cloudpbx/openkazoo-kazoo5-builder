@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Erlang Solutions apt source. The same .asc key works for Debian and Ubuntu repos.
-RUN curl -fsSL https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc \
+RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+      https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc \
       -o /usr/share/keyrings/erlang-solutions.asc \
  && echo "deb [signed-by=/usr/share/keyrings/erlang-solutions.asc] \
 https://packages.erlang-solutions.com/debian bookworm contrib" \
@@ -27,7 +28,8 @@ https://packages.erlang-solutions.com/debian bookworm contrib" \
  && rm -rf /var/lib/apt/lists/*
 
 # rebar3 (matches kazoo5/.tool-versions). Fetch the pinned binary from upstream.
-RUN curl -fsSL "https://github.com/erlang/rebar3/releases/download/${REBAR_VERSION}/rebar3" \
+RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+      "https://github.com/erlang/rebar3/releases/download/${REBAR_VERSION}/rebar3" \
       -o /usr/local/bin/rebar3 \
  && chmod +x /usr/local/bin/rebar3 \
  && rebar3 --version
