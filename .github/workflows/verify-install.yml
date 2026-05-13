@@ -1,0 +1,78 @@
+name: verify-install
+
+on:
+  workflow_run:
+    workflows: [build-and-publish]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'   # Mondays at 04:17 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  install-debian-12:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install from published apt repo
+        run: |
+          docker run --rm debian:12-slim bash -e -c '
+            set -euxo pipefail
+            apt-get update
+            apt-get install -y --no-install-recommends ca-certificates curl gnupg
+
+            # Erlang Solutions repo
+            curl -fsSL https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc \
+              -o /usr/share/keyrings/erlang-solutions.asc
+            echo "deb [signed-by=/usr/share/keyrings/erlang-solutions.asc] \
+              https://packages.erlang-solutions.com/debian bookworm contrib" \
+              > /etc/apt/sources.list.d/erlang-solutions.list
+
+            # openkazoo repo
+            curl -fsSL https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
+              -o /usr/share/keyrings/openkazoo.asc
+            echo "deb [signed-by=/usr/share/keyrings/openkazoo.asc] \
+              https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian bookworm main" \
+              > /etc/apt/sources.list.d/openkazoo.list
+
+            apt-get update
+            apt-get install -y --no-install-recommends kazoo
+
+            # Asserts
+            test -x /opt/kazoo/bin/kazoo
+            test -f /lib/systemd/system/kazoo.service
+            test -f /etc/default/kazoo
+            id kazoo >/dev/null
+            echo "OK: kazoo installs cleanly on Debian 12"
+          '
+
+  install-rocky-9:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install from published yum repo
+        run: |
+          docker run --rm rockylinux:9 bash -e -c '
+            set -euxo pipefail
+            dnf install -y curl
+
+            # Erlang Solutions repo
+            dnf install -y https://packages.erlang-solutions.com/rpm/centos/9/erlang-solutions-2.0-1.noarch.rpm
+
+            # openkazoo repo
+            curl -fsSL https://cloudpbx.github.io/openkazoo-kazoo5-builder/el/9/openkazoo.repo \
+              -o /etc/yum.repos.d/openkazoo.repo
+            rpm --import https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc
+
+            dnf install -y kazoo
+
+            # Asserts
+            test -x /opt/kazoo/bin/kazoo
+            test -f /lib/systemd/system/kazoo.service || test -f /usr/lib/systemd/system/kazoo.service
+            test -f /etc/default/kazoo
+            id kazoo >/dev/null
+            echo "OK: kazoo installs cleanly on Rocky 9"
+          '
