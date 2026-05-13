@@ -5,9 +5,13 @@
 When upstream `2600hz/kazoo5` publishes a new tag or you want to track a newer commit:
 
 ```bash
-echo "5.4.0" > config/kazoo.version        # or "master", or a 40-char SHA
+echo "5.4.0" > config/kazoo.version        # tag or branch name
 git commit -am "feat: bump kazoo to 5.4.0"
 ```
+
+`config/kazoo.version` must be a tag or branch name that `git clone --branch` accepts.
+Bare commit SHAs are not supported by `scripts/build.sh` today — pin a branch instead,
+or extend `build.sh` to deep-clone + `git checkout` if SHA-pinning becomes a requirement.
 
 Merging this PR does **not** trigger a release build. To release:
 
