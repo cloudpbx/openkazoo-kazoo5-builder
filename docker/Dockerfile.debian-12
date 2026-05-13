@@ -20,7 +20,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Toolchain: build tools, packaging utilities, Ruby (for FPM),
 # Erlang/OTP build dependencies (no GUI/WX; that'd require X11 libs).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl gnupg git make build-essential \
+      ca-certificates curl wget gnupg git make build-essential \
       autoconf zip unzip xsltproc libxslt1-dev \
       libssl-dev libncurses-dev libsctp-dev \
       libwxgtk3.2-dev \

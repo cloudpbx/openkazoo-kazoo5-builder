@@ -23,7 +23,7 @@ RUN dnf -y install dnf-plugins-core \
  && dnf config-manager --set-enabled crb \
  && dnf -y groupinstall "Development Tools" \
  && dnf -y install \
-      ca-certificates git make \
+      ca-certificates wget git make \
       autoconf zip unzip libxslt \
       openssl-devel ncurses-devel \
       lksctp-tools-devel \
