@@ -1,0 +1,137 @@
+name: build-and-publish
+
+on:
+  push:
+    tags:
+      - 'v5.*'
+  workflow_dispatch:
+    inputs:
+      kazoo_version:
+        description: 'Override config/kazoo.version for this run (e.g. master, 5.4.0)'
+        required: false
+        default: ''
+      publish:
+        description: 'If true, publish to gh-pages (workflow_dispatch only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # needed to push gh-pages and create releases
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [debian-12, el9]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Apply kazoo_version override
+        if: ${{ inputs.kazoo_version != '' }}
+        run: echo "${{ inputs.kazoo_version }}" > config/kazoo.version
+
+      - name: Build package
+        run: make build TARGET=${{ matrix.target }}
+
+      - name: Sign package
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          # sign.sh runs on the host (not in the build container) — pass key through env
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            -e GPG_PRIVATE_KEY -e GPG_PASSPHRASE \
+            --entrypoint /work/scripts/sign.sh \
+            openkazoo-kazoo5-builder:${{ matrix.target }} \
+            ${{ matrix.target }}
+
+      - name: Verify package
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work \
+            --entrypoint /work/scripts/verify.sh \
+            openkazoo-kazoo5-builder:${{ matrix.target }} \
+            ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.target }}
+          path: build/out/*
+          if-no-files-found: error
+
+  publish:
+    name: publish to gh-pages + release
+    needs: build
+    if: |
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: build/out-staging
+
+      - name: Flatten artifacts into build/out
+        run: |
+          mkdir -p build/out
+          find build/out-staging -type f \( -name "*.deb" -o -name "*.rpm" \) \
+            -exec cp -v {} build/out/ \;
+          ls -la build/out
+
+      - name: Build debian-12 image (publish.sh runs in it)
+        run: make docker-build TARGET=debian-12
+
+      - name: Assemble apt + yum repos
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            -e GPG_PRIVATE_KEY -e GPG_PASSPHRASE \
+            --entrypoint /work/scripts/publish.sh \
+            openkazoo-kazoo5-builder:debian-12
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Sync build/repo into gh-pages
+        run: |
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='README.md' \
+            build/repo/ gh-pages/
+
+      - name: Commit + push gh-pages
+        working-directory: gh-pages
+        run: |
+          git config user.name "openkazoo-bot"
+          git config user.email "openkazoo-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+          else
+            git commit -m "publish: ${{ github.ref_name }}"
+            git push origin gh-pages
+          fi
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/out/*
+          body: |
+            Automated build for `${{ github.ref_name }}`.
+
+            Install instructions: see [docs/INSTALL.md](https://github.com/cloudpbx/openkazoo-kazoo5-builder/blob/main/docs/INSTALL.md).
