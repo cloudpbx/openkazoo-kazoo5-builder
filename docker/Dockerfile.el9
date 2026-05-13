@@ -53,8 +53,17 @@ ENV KERL_CONFIGURE_OPTIONS="\
   --enable-smp-support \
   --enable-kernel-poll \
   --enable-dynamic-ssl-lib"
-RUN kerl build "${OTP_VERSION}" "${OTP_VERSION}" \
- && kerl install "${OTP_VERSION}" "/opt/erlang/${OTP_VERSION}" \
+# Diagnostics + explicit init: kerl on first use needs `kerl update
+# releases` before `kerl build` can find a version.
+RUN set -ex \
+ && export HOME=/root \
+ && /usr/local/bin/kerl version || true \
+ && /usr/local/bin/kerl list releases 2>&1 | head -3 || true \
+ && /usr/local/bin/kerl update releases \
+ && /usr/local/bin/kerl list releases | grep -F "${OTP_VERSION}" || \
+      { echo "OTP ${OTP_VERSION} not in kerl release list" >&2; exit 1; } \
+ && /usr/local/bin/kerl build "${OTP_VERSION}" "${OTP_VERSION}" \
+ && /usr/local/bin/kerl install "${OTP_VERSION}" "/opt/erlang/${OTP_VERSION}" \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/erl"     /usr/local/bin/erl  \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/erlc"    /usr/local/bin/erlc \
  && ln -s "/opt/erlang/${OTP_VERSION}/bin/escript" /usr/local/bin/escript \
