@@ -99,14 +99,17 @@ OTP_MAJ_MIN="${OTP_VERSION%.*}"
 case "$TARGET" in
   debian-12)
     echo ">> Wrapping into .deb with fpm"
+    # No esl-erlang dependency: relx's tar-release bundles ERTS into
+    # the release tarball, so the package is self-contained.
     fpm -s dir -t deb \
         --name kazoo \
         --version "$PKG_VERSION" \
         --iteration "${PKG_REVISION}~bookworm1" \
         --architecture amd64 \
-        --depends "esl-erlang (>= 1:${OTP_MAJ_MIN})" \
         --depends "adduser" \
         --depends "systemd" \
+        --depends "libssl3" \
+        --depends "libncurses6" \
         --maintainer "openkazoo <support@cloudpbx.example>" \
         --description "Kazoo telephony platform (community build of 2600hz/kazoo5)" \
         --url "https://github.com/cloudpbx/openkazoo-kazoo5-builder" \
@@ -120,14 +123,16 @@ case "$TARGET" in
     ;;
   el9)
     echo ">> Wrapping into .rpm with fpm"
+    # No esl-erlang Requires: relx's tar-release bundles ERTS.
     fpm -s dir -t rpm \
         --name kazoo \
         --version "$PKG_VERSION" \
         --iteration "${PKG_REVISION}.el9" \
         --architecture x86_64 \
-        --depends "esl-erlang >= ${OTP_MAJ_MIN}" \
         --depends "shadow-utils" \
         --depends "systemd" \
+        --depends "openssl-libs" \
+        --depends "ncurses-libs" \
         --rpm-dist el9 \
         --rpm-summary "Kazoo telephony platform" \
         --maintainer "openkazoo <support@cloudpbx.example>" \

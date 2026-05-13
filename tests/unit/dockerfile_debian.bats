@@ -14,13 +14,16 @@ load '../test_helper/common.bash'
   grep -q "^ARG REBAR_VERSION=" "$f"
 }
 
-@test "Dockerfile.debian-12 installs reprepro, debsigs, fpm, esl-erlang" {
+@test "Dockerfile.debian-12 installs reprepro, debsigs, fpm, and kerl (for source-built OTP)" {
   local f="$REPO_ROOT/docker/Dockerfile.debian-12"
   grep -q "reprepro" "$f"
   grep -q "debsigs" "$f"
   grep -q "gem install" "$f"
   grep -q "fpm" "$f"
-  grep -q "esl-erlang" "$f"
+  # OTP is compiled from source via kerl (was esl-erlang from packages.erlang-solutions.com
+  # before that server was retired by ESL in mid-2026).
+  grep -q "kerl" "$f"
+  grep -q "kerl build" "$f"
 }
 
 @test "Dockerfile.debian-12 sets WORKDIR /work and ENTRYPOINT to build.sh" {

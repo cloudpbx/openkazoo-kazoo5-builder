@@ -1,5 +1,15 @@
 # syntax=docker/dockerfile:1.6
 # Build image for Debian 12 (bookworm) packages.
+#
+# OTP is compiled from source via kerl rather than installed from the
+# Erlang Solutions apt repo. Background: ESL retired
+# packages.erlang-solutions.com in mid-2026 and migrated to
+# binaries2.erlang-solutions.com, which only carries OTP 27.x for
+# Debian bookworm and has no Rocky 9 builds at all. Since kazoo5 pins
+# OTP 26.2 (per make/erlang_version) we build from source to get an
+# exact version match. relx's tar-release bundles ERTS into the
+# resulting tarball, so end-user packages don't need a runtime
+# Erlang installation either.
 
 FROM debian:12-slim
 
@@ -7,25 +17,48 @@ ARG OTP_VERSION=26.2.5
 ARG REBAR_VERSION=3.23.0
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Toolchain: build tools, packaging utilities, Ruby (for FPM), Erlang/OTP from ESL.
+# Toolchain: build tools, packaging utilities, Ruby (for FPM),
+# Erlang/OTP build dependencies (no GUI/WX; that'd require X11 libs).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl gnupg git make build-essential \
       autoconf zip unzip xsltproc libxslt1-dev \
-      libssl-dev libncurses-dev \
+      libssl-dev libncurses-dev libsctp-dev \
+      libwxgtk3.2-dev \
       python3 ruby ruby-dev rubygems \
       reprepro debsigs createrepo-c \
  && rm -rf /var/lib/apt/lists/*
 
-# Erlang Solutions apt source. The same .asc key works for Debian and Ubuntu repos.
+# kerl — build OTP from source, exact-version
 RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
-      https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc \
-      -o /usr/share/keyrings/erlang-solutions.asc \
- && echo "deb [signed-by=/usr/share/keyrings/erlang-solutions.asc] \
-https://packages.erlang-solutions.com/debian bookworm contrib" \
-      > /etc/apt/sources.list.d/erlang-solutions.list \
- && apt-get update \
- && apt-get install -y --no-install-recommends "esl-erlang=1:${OTP_VERSION}-1" \
- && rm -rf /var/lib/apt/lists/*
+      https://raw.githubusercontent.com/kerl/kerl/master/kerl \
+      -o /usr/local/bin/kerl \
+ && chmod +x /usr/local/bin/kerl
+
+# Build OTP. KERL_CONFIGURE_OPTIONS disables GUI/wx/odbc/jinterface (we
+# don't need them; saves build time and avoids X11 deps). javac/java are
+# also skipped. Build ~20-25 min on first run; subsequent rebuilds use
+# Docker layer cache.
+ENV KERL_BUILD_BACKEND=tarball
+ENV KERL_CONFIGURE_OPTIONS="\
+  --disable-debug \
+  --disable-silent-rules \
+  --without-javac \
+  --without-jinterface \
+  --without-megaco \
+  --without-et \
+  --without-odbc \
+  --enable-threads \
+  --enable-shared-zlib \
+  --enable-ssl=dynamic-ssl-lib \
+  --enable-smp-support \
+  --enable-kernel-poll \
+  --enable-dynamic-ssl-lib"
+RUN kerl build "${OTP_VERSION}" "${OTP_VERSION}" \
+ && kerl install "${OTP_VERSION}" "/opt/erlang/${OTP_VERSION}" \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/erl"  /usr/local/bin/erl  \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/erlc" /usr/local/bin/erlc \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/escript" /usr/local/bin/escript \
+ && erl -version
 
 # rebar3 (matches kazoo5/.tool-versions). Fetch the pinned binary from upstream.
 RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
@@ -36,6 +69,13 @@ RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
 
 # FPM for wrapping the relx tarball into .deb
 RUN gem install --no-document fpm:1.16.0
+
+# kazoo5's rel/relx.config.script references wx, observer, debugger in
+# the release manifest, so we build OTP with these enabled (WX requires
+# libwxgtk3.2-dev installed above).
+
+# Activate kerl's OTP install so child shells see erl/erlc/escript on PATH.
+ENV PATH="/opt/erlang/${OTP_VERSION}/bin:${PATH}"
 
 WORKDIR /work
 ENTRYPOINT ["/work/scripts/build.sh"]

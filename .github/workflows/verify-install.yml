@@ -23,12 +23,8 @@ jobs:
             apt-get update
             apt-get install -y --no-install-recommends ca-certificates curl gnupg
 
-            # Erlang Solutions repo
-            curl -fsSL https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc \
-              -o /usr/share/keyrings/erlang-solutions.asc
-            echo "deb [signed-by=/usr/share/keyrings/erlang-solutions.asc] \
-              https://packages.erlang-solutions.com/debian bookworm contrib" \
-              > /etc/apt/sources.list.d/erlang-solutions.list
+            # No ESL repo needed: ERTS is bundled inside the kazoo package
+            # (relx tar-release ships the OTP runtime in /opt/kazoo/erts-*).
 
             # openkazoo repo
             curl -fsSL https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
@@ -58,8 +54,7 @@ jobs:
             set -euxo pipefail
             dnf install -y curl
 
-            # Erlang Solutions repo
-            dnf install -y https://packages.erlang-solutions.com/rpm/centos/9/erlang-solutions-2.0-1.noarch.rpm
+            # No ESL repo needed: ERTS is bundled inside the kazoo package.
 
             # openkazoo repo
             curl -fsSL https://cloudpbx.github.io/openkazoo-kazoo5-builder/el/9/openkazoo.repo \

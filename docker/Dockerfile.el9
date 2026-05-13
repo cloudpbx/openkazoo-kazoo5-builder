@@ -1,28 +1,64 @@
 # syntax=docker/dockerfile:1.6
 # Build image for EL9 (Rocky 9 / Alma 9 / RHEL 9) packages.
+#
+# OTP is compiled from source via kerl rather than from
+# packages.erlang-solutions.com (which was retired in mid-2026) or
+# binaries2.erlang-solutions.com (which has no Rocky 9 builds at all,
+# only Rocky 8). kazoo5 pins OTP 26.2 per make/erlang_version, so we
+# build that exact version. relx's tar-release bundles ERTS into the
+# resulting tarball, so the produced .rpm has no Erlang runtime
+# dependency on the host.
 
 FROM rockylinux:9
 
 ARG OTP_VERSION=26.2.5
 ARG REBAR_VERSION=3.23.0
 
-# Toolchain: development tools, packaging utilities, Erlang/OTP from ESL.
+# Toolchain: development tools, packaging utilities, Erlang/OTP build
+# dependencies (no GUI/WX; that'd require X11 libs).
+# curl-minimal ships in the base image and is sufficient for our needs;
+# do NOT install full curl (conflicts with curl-minimal on Rocky 9).
 RUN dnf -y install dnf-plugins-core \
  && dnf -y install epel-release \
+ && dnf config-manager --set-enabled crb \
  && dnf -y groupinstall "Development Tools" \
  && dnf -y install \
       ca-certificates git make \
       autoconf zip unzip libxslt \
       openssl-devel ncurses-devel \
+      lksctp-tools-devel \
+      wxGTK3-devel \
       python3 ruby ruby-devel rubygems \
       createrepo_c rpm-sign gnupg2 \
  && dnf clean all
 
-# Erlang Solutions yum repo. Bootstrap RPM:
-RUN dnf -y install \
-      https://packages.erlang-solutions.com/rpm/centos/9/erlang-solutions-2.0-1.noarch.rpm \
- && dnf -y install "esl-erlang-${OTP_VERSION}" \
- && dnf clean all
+# kerl — build OTP from source, exact-version
+RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+      https://raw.githubusercontent.com/kerl/kerl/master/kerl \
+      -o /usr/local/bin/kerl \
+ && chmod +x /usr/local/bin/kerl
+
+ENV KERL_BUILD_BACKEND=tarball
+ENV KERL_CONFIGURE_OPTIONS="\
+  --disable-debug \
+  --disable-silent-rules \
+  --without-javac \
+  --without-jinterface \
+  --without-megaco \
+  --without-et \
+  --without-odbc \
+  --enable-threads \
+  --enable-shared-zlib \
+  --enable-ssl=dynamic-ssl-lib \
+  --enable-smp-support \
+  --enable-kernel-poll \
+  --enable-dynamic-ssl-lib"
+RUN kerl build "${OTP_VERSION}" "${OTP_VERSION}" \
+ && kerl install "${OTP_VERSION}" "/opt/erlang/${OTP_VERSION}" \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/erl"     /usr/local/bin/erl  \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/erlc"    /usr/local/bin/erlc \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/escript" /usr/local/bin/escript \
+ && erl -version
 
 # rebar3
 RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
@@ -33,6 +69,8 @@ RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
 
 # FPM
 RUN gem install --no-document fpm:1.16.0
+
+ENV PATH="/opt/erlang/${OTP_VERSION}/bin:${PATH}"
 
 WORKDIR /work
 ENTRYPOINT ["/work/scripts/build.sh"]
