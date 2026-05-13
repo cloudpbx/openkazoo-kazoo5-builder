@@ -5,13 +5,17 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=forking
+Type=simple
 User=kazoo
 Group=kazoo
 EnvironmentFile=-/etc/default/kazoo
 WorkingDirectory=/var/lib/kazoo
-ExecStart=/opt/kazoo/bin/kazoo start
-ExecStop=/opt/kazoo/bin/kazoo stop
+# 'foreground' is the relx-supplied non-daemonizing entrypoint; systemd
+# supervises the BEAM VM directly and journald captures stdout/stderr.
+# Avoid 'bin/kazoo start' (Type=forking) because relx doesn't write a PIDFile
+# in a systemd-discoverable location, leading to misleading service state.
+ExecStart=/opt/kazoo/bin/kazoo foreground
+# systemd sends SIGTERM on stop; relx handles it as graceful shutdown.
 Restart=on-failure
 RestartSec=10s
 LimitNOFILE=65535
