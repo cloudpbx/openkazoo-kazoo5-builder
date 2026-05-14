@@ -67,7 +67,13 @@ echo ">> Package version will be: $PKG_VERSION"
 
 # --- Step 2: Compile + tarball Erlang release -------------------------------
 
-echo ">> Running make compile + make tar-release"
+# Force kazoo5's app fetch to use HTTPS instead of SSH (its default).
+# Per make/app_urls.mk: `dep_blackhole = git $(FETCH_AS)2600hz/kazoo-blackhole.git`
+# with FETCH_AS ?= git@github.com:  →  override to public HTTPS so CI without
+# SSH credentials can clone the public app repos.
+export FETCH_AS=https://github.com/
+
+echo ">> Running make compile + make tar-release (FETCH_AS=$FETCH_AS)"
 make compile
 make tar-release
 
