@@ -73,7 +73,14 @@ echo ">> Package version will be: $PKG_VERSION"
 # SSH credentials can clone the public app repos.
 export FETCH_AS=https://github.com/
 
+# kazoo5/make/releases.mk's `build-release` target sets ERL_LIBS but
+# `tar-release` (which we call) does not. Without it, build-release.escript
+# fails with `undefined function getopt:parse/2` because the deps aren't
+# on the code path. Set it explicitly so both targets find deps + core + apps.
+export ERL_LIBS="$SRC_DIR/deps:$SRC_DIR/core:$SRC_DIR/applications"
+
 echo ">> Running make compile + make tar-release (FETCH_AS=$FETCH_AS)"
+echo ">>   ERL_LIBS=$ERL_LIBS"
 make compile
 make tar-release
 
