@@ -82,12 +82,20 @@ export ERL_LIBS="$SRC_DIR/deps:$SRC_DIR/core:$SRC_DIR/applications"
 echo ">> Running make compile + make tar-release (FETCH_AS=$FETCH_AS)"
 echo ">>   ERL_LIBS=$ERL_LIBS"
 make compile
-make tar-release
+# `make tar-release` builds the relx release dir but in our relx version the
+# embedded `tar` subcommand isn't producing the tarball (no .tar.gz appears
+# under _rel/kazoo). The release dir itself is correctly assembled. Let
+# make tar-release run, then tarball the dir ourselves if relx didn't.
+make tar-release || true
 
-# The output of tar-release lives at _rel/kazoo/kazoo-${VERSION}.tar.gz where
-# VERSION is whatever the upstream Makefile uses. Find it.
-RELEASE_TARBALL=$(find _rel/kazoo -maxdepth 2 -name "kazoo-*.tar.gz" | head -1)
-[ -f "$RELEASE_TARBALL" ] || die "tar-release did not produce a kazoo-*.tar.gz"
+RELEASE_TARBALL=$(find _rel/kazoo -maxdepth 3 -name "kazoo-*.tar.gz" 2>/dev/null | head -1)
+if [ -z "$RELEASE_TARBALL" ]; then
+  echo ">> relx didn't produce a tarball; rolling one from _rel/kazoo/"
+  [ -d _rel/kazoo ] || die "_rel/kazoo not found — relx did not build the release"
+  RELEASE_TARBALL="$BUILD_DIR/kazoo-${PKG_VERSION}.tar.gz"
+  tar -czf "$RELEASE_TARBALL" -C _rel/kazoo .
+fi
+[ -f "$RELEASE_TARBALL" ] || die "could not produce a release tarball"
 echo ">> Release tarball: $RELEASE_TARBALL"
 
 # --- Step 3: Stage files into FHS layout ------------------------------------
