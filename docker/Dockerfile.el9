@@ -23,7 +23,7 @@ RUN dnf -y install dnf-plugins-core \
  && dnf config-manager --set-enabled crb \
  && dnf -y groupinstall "Development Tools" \
  && dnf -y install \
-      ca-certificates wget git make \
+      ca-certificates wget git openssh-clients make \
       autoconf zip unzip libxslt \
       openssl-devel ncurses-devel \
       lksctp-tools-devel \
@@ -31,6 +31,11 @@ RUN dnf -y install dnf-plugins-core \
       python3 ruby ruby-devel rubygems \
       createrepo_c rpm-sign gnupg2 \
  && dnf clean all
+
+# kazoo5 fetches some applications via SSH URLs (git@github.com:2600hz/...).
+# Rewrite SSH GitHub URLs to HTTPS globally (public repos, no creds needed).
+RUN git config --global url."https://github.com/".insteadOf "git@github.com:" \
+ && git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 
 # Build OTP from source directly (no kerl). Plain
 # ./configure && make && make install gives full diagnostic output.

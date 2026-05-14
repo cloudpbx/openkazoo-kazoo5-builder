@@ -20,13 +20,19 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Toolchain: build tools, packaging utilities, Ruby (for FPM),
 # Erlang/OTP build dependencies (no GUI/WX; that'd require X11 libs).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl wget gnupg git make build-essential \
+      ca-certificates curl wget gnupg git openssh-client make build-essential \
       autoconf zip unzip xsltproc libxslt1-dev \
       libssl-dev libncurses-dev libsctp-dev \
       libwxgtk3.2-dev \
       python3 ruby ruby-dev rubygems \
       reprepro debsigs createrepo-c \
  && rm -rf /var/lib/apt/lists/*
+
+# kazoo5 fetches some applications via SSH URLs (git@github.com:2600hz/...).
+# In CI we don't have SSH credentials and the source repos are public,
+# so rewrite SSH GitHub URLs to HTTPS globally.
+RUN git config --global url."https://github.com/".insteadOf "git@github.com:" \
+ && git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 
 # Build OTP from source directly (no kerl). Plain
 # ./configure && make && make install gives full diagnostic output.
