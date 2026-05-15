@@ -26,8 +26,10 @@ jobs:
             # No ESL repo needed: ERTS is bundled inside the kazoo package
             # (relx tar-release ships the OTP runtime in /opt/kazoo/erts-*).
 
-            # openkazoo repo
-            curl -fsSL https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
+            # openkazoo repo. --retry-all-errors waits out 404s when
+            # GitHub Pages is still propagating after a fresh publish.
+            curl -fsSL --retry 12 --retry-delay 10 --retry-all-errors \
+              https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
               -o /usr/share/keyrings/openkazoo.asc
             echo "deb [signed-by=/usr/share/keyrings/openkazoo.asc] \
               https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian bookworm main" \
@@ -52,12 +54,16 @@ jobs:
         run: |
           docker run --rm rockylinux:9 bash -e -c '
             set -euxo pipefail
-            dnf install -y curl
+            # rockylinux:9 ships curl-minimal which provides the curl
+            # command. Do NOT `dnf install curl` (conflicts with
+            # curl-minimal from baseos).
 
             # No ESL repo needed: ERTS is bundled inside the kazoo package.
 
-            # openkazoo repo
-            curl -fsSL https://cloudpbx.github.io/openkazoo-kazoo5-builder/el/9/openkazoo.repo \
+            # openkazoo repo. --retry-all-errors waits out 404s when
+            # GitHub Pages is still propagating after a fresh publish.
+            curl -fsSL --retry 12 --retry-delay 10 --retry-all-errors \
+              https://cloudpbx.github.io/openkazoo-kazoo5-builder/el/9/openkazoo.repo \
               -o /etc/yum.repos.d/openkazoo.repo
             rpm --import https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc
 
