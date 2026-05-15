@@ -1,0 +1,7 @@
+[openkazoo-kazoo5]
+name=openkazoo Kazoo 5 community packages for EL$releasever
+baseurl=https://cloudpbx.github.io/openkazoo-kazoo5-builder/el/$releasever/
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc
