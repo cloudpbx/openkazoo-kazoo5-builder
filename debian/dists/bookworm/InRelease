@@ -5,26 +5,26 @@ Origin: openkazoo
 Label: openkazoo-kazoo5-builder
 Suite: stable
 Codename: bookworm
-Date: Fri, 15 May 2026 05:32:57 UTC
+Date: Sat, 16 May 2026 16:05:58 UTC
 Architectures: amd64
 Components: main
 Description: Community-built Kazoo packages for Debian 12
 MD5Sum:
- 0115a4c8ad119270eb4c2a447e4d9d90 673 main/binary-amd64/Packages
- 88c1258f0859e0c4bea23afab88e6e4c 471 main/binary-amd64/Packages.gz
+ c3d3285d5faa1871535c95782dd667d7 673 main/binary-amd64/Packages
+ 5f71d0f269ffd4ee94d687bb5bf317f6 469 main/binary-amd64/Packages.gz
  4dce2b6b373267faa2cab46827f64f5d 160 main/binary-amd64/Release
 SHA1:
- 05a4ace508a73aa3e31d153e6bb93dc35a30cb40 673 main/binary-amd64/Packages
- 97c29a29d5badada7856efd1202e0c58c18c95c9 471 main/binary-amd64/Packages.gz
+ 273f762d6fd7202dda6c07b9bab90f9dadd4cfc8 673 main/binary-amd64/Packages
+ 15184a33d46c380a253833e2b44df128522bc35b 469 main/binary-amd64/Packages.gz
  7d3462b998df2c831b4ed34f26a0703af043f1d7 160 main/binary-amd64/Release
 SHA256:
- 2112549d277aa552381c4e0a730535b3ceb6682d6275e6ccdaa757b261fcd174 673 main/binary-amd64/Packages
- a208932fca4af3e669fdf430e3dd9bead3a358ef529ed0017d3e050561464aaf 471 main/binary-amd64/Packages.gz
+ be337d3c7ef7711d19be1c5280c9b4964d2cc8438bd7797ebf635a664e8cdb0a 673 main/binary-amd64/Packages
+ 8ccc3599221a66717b8e6de92176b174ea5bd9f5ef97c40df633d3b973edaf96 469 main/binary-amd64/Packages.gz
  85da0e83d4f1097766ed6e73737cd6e2128708a3b214fbbb83dfe023999c3e88 160 main/binary-amd64/Release
 -----BEGIN PGP SIGNATURE-----
 
-iHUEARYIAB0WIQQxsjupoxh2GrErAaW6qvFD1TYmXQUCagawCQAKCRC6qvFD1TYm
-XTgsAQDBYtQJgVxiJFJgSHai1LlFxExCdZZ1OV5AsfQbVkCfagEAnOa8kOkAKL7i
-nCveJrm98o3kgvFJaQrikinvz0tUSAg=
-=x9my
+iHUEARYIAB0WIQQxsjupoxh2GrErAaW6qvFD1TYmXQUCagiV5gAKCRC6qvFD1TYm
+XSEXAQCdYtXtMO+DdWbxc7bBU/u+pv/RpHiY4B8htviOghNBMwEAuZ2RaA5bU25/
+lHXXep5kNRmCgZjGZMoizmcxPc15eg4=
+=uJEp
 -----END PGP SIGNATURE-----
