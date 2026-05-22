@@ -76,3 +76,180 @@ jobs:
             id kazoo >/dev/null
             echo "OK: kazoo installs cleanly on Rocky 9"
           '
+
+  # ----- Phase-1 boot test: does the BEAM VM actually run? -----
+  # The install-* jobs above only assert files exist. These jobs install
+  # kazoo, write a minimal /etc/kazoo/config.ini (just the cookie — no
+  # CouchDB/RabbitMQ sidecars in Phase 1), then start `kazoo foreground`
+  # and assert the BEAM VM stays up for 30s. Catches package-level
+  # runtime defects (missing libs, malformed sys.config, broken bin
+  # script, etc.) that file-placement tests miss.
+
+  boot-test-debian-12:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    runs-on: ubuntu-latest
+    needs: install-debian-12
+    steps:
+      - name: Boot kazoo and verify BEAM stays up
+        run: |
+          docker run --rm debian:12-slim bash -e -c '
+            set -euxo pipefail
+            apt-get update
+            apt-get install -y --no-install-recommends \
+              ca-certificates curl gnupg procps
+
+            curl -fsSL --retry 12 --retry-delay 10 --retry-all-errors \
+              https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
+              -o /usr/share/keyrings/openkazoo.asc
+            echo "deb [signed-by=/usr/share/keyrings/openkazoo.asc] \
+              https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian bookworm main" \
+              > /etc/apt/sources.list.d/openkazoo.list
+            apt-get update
+            apt-get install -y --no-install-recommends kazoo
+
+            # Minimal runtime config (kazoo5 expects /etc/kazoo/config.ini).
+            # No CouchDB/RabbitMQ here — kazoo apps will retry connections
+            # forever but the OTP supervision tree should keep the BEAM up.
+            mkdir -p /etc/kazoo
+            cat > /etc/kazoo/config.ini <<EOF
+          [amqp]
+          uri = "amqp://guest:guest@127.0.0.1:5672"
+          pool_size = 10
+
+          [kazoo_apps]
+          cookie = boot-test-cookie
+
+          [log]
+          console=info
+          error=error
+
+          [data]
+          config = couchdb3
+
+          [couchdb3]
+          ip = "127.0.0.1"
+          port = 5984
+          username = admin
+          password = admin
+          EOF
+            sed -i "s/^COOKIE=.*/COOKIE=boot-test-cookie/" /etc/default/kazoo
+
+            chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
+
+            # Run kazoo as the kazoo user, capture stdout to a log file
+            nohup runuser -u kazoo -- /opt/kazoo/bin/kazoo foreground \
+              > /tmp/kazoo.out 2>&1 &
+            KZ_SHELL_PID=$!
+            echo "started kazoo (shell pid=$KZ_SHELL_PID)"
+
+            # Wait up to 30s for the BEAM VM to appear
+            for i in $(seq 1 30); do
+              if pgrep -f "beam.smp.* -- -root /opt/kazoo" >/dev/null 2>&1 \
+                 || pgrep -f beam.smp >/dev/null 2>&1; then
+                echo "BEAM up after ${i}s"
+                break
+              fi
+              sleep 1
+            done
+
+            if ! pgrep -f beam.smp >/dev/null 2>&1; then
+              echo "FAIL: BEAM never started"
+              echo "--- /tmp/kazoo.out ---"
+              cat /tmp/kazoo.out
+              exit 1
+            fi
+
+            # Hold for 30 more seconds; if the VM crashes in that window
+            # (e.g. malformed sys.config, missing app, dep mismatch),
+            # this catches it.
+            echo "holding 30s to ensure BEAM stays up..."
+            sleep 30
+
+            if ! pgrep -f beam.smp >/dev/null 2>&1; then
+              echo "FAIL: BEAM crashed within 30s of startup"
+              echo "--- /tmp/kazoo.out ---"
+              tail -100 /tmp/kazoo.out
+              exit 1
+            fi
+
+            echo "OK: BEAM VM still running 30s after start"
+            echo "--- log tail (informational) ---"
+            tail -40 /tmp/kazoo.out || true
+
+            # Clean shutdown
+            pkill -TERM -f beam.smp 2>/dev/null || true
+            sleep 5
+          '
+
+  boot-test-rocky-9:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    runs-on: ubuntu-latest
+    needs: install-rocky-9
+    steps:
+      - name: Boot kazoo and verify BEAM stays up
+        run: |
+          docker run --rm rockylinux:9 bash -e -c '
+            set -euxo pipefail
+            curl -fsSL --retry 12 --retry-delay 10 --retry-all-errors \
+              https://cloudpbx.github.io/openkazoo-kazoo5-builder/el/9/openkazoo.repo \
+              -o /etc/yum.repos.d/openkazoo.repo
+            rpm --import https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc
+            dnf install -y kazoo procps-ng
+
+            mkdir -p /etc/kazoo
+            cat > /etc/kazoo/config.ini <<EOF
+          [amqp]
+          uri = "amqp://guest:guest@127.0.0.1:5672"
+          pool_size = 10
+
+          [kazoo_apps]
+          cookie = boot-test-cookie
+
+          [log]
+          console=info
+          error=error
+
+          [data]
+          config = couchdb3
+
+          [couchdb3]
+          ip = "127.0.0.1"
+          port = 5984
+          username = admin
+          password = admin
+          EOF
+            sed -i "s/^COOKIE=.*/COOKIE=boot-test-cookie/" /etc/default/kazoo
+            chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
+
+            nohup runuser -u kazoo -- /opt/kazoo/bin/kazoo foreground \
+              > /tmp/kazoo.out 2>&1 &
+            echo "started kazoo"
+
+            for i in $(seq 1 30); do
+              if pgrep -f beam.smp >/dev/null 2>&1; then
+                echo "BEAM up after ${i}s"
+                break
+              fi
+              sleep 1
+            done
+
+            if ! pgrep -f beam.smp >/dev/null 2>&1; then
+              echo "FAIL: BEAM never started"
+              cat /tmp/kazoo.out
+              exit 1
+            fi
+
+            echo "holding 30s to ensure BEAM stays up..."
+            sleep 30
+
+            if ! pgrep -f beam.smp >/dev/null 2>&1; then
+              echo "FAIL: BEAM crashed within 30s of startup"
+              tail -100 /tmp/kazoo.out
+              exit 1
+            fi
+
+            echo "OK: BEAM VM still running 30s after start"
+            tail -40 /tmp/kazoo.out || true
+            pkill -TERM -f beam.smp 2>/dev/null || true
+            sleep 5
+          '
