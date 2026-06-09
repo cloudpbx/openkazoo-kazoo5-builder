@@ -79,24 +79,27 @@ export FETCH_AS=https://github.com/
 # on the code path. Set it explicitly so both targets find deps + core + apps.
 export ERL_LIBS="$SRC_DIR/deps:$SRC_DIR/core:$SRC_DIR/applications"
 
-echo ">> Running make compile + make tar-release (FETCH_AS=$FETCH_AS)"
+echo ">> Running make compile + make build-dist-release (FETCH_AS=$FETCH_AS)"
 echo ">>   ERL_LIBS=$ERL_LIBS"
 make compile
-# `make tar-release` builds the relx release dir but in our relx version the
-# embedded `tar` subcommand isn't producing the tarball (no .tar.gz appears
-# under _rel/kazoo). The release dir itself is correctly assembled. Let
-# make tar-release run, then tarball the dir ourselves if relx didn't.
-make tar-release || true
-
-RELEASE_TARBALL=$(find _rel/kazoo -maxdepth 3 -name "kazoo-*.tar.gz" 2>/dev/null | head -1)
-if [ -z "$RELEASE_TARBALL" ]; then
-  echo ">> relx didn't produce a tarball; rolling one from _rel/kazoo/"
-  [ -d _rel/kazoo ] || die "_rel/kazoo not found — relx did not build the release"
-  RELEASE_TARBALL="$BUILD_DIR/kazoo-${PKG_VERSION}.tar.gz"
-  tar -czf "$RELEASE_TARBALL" -C _rel/kazoo .
-fi
-[ -f "$RELEASE_TARBALL" ] || die "could not produce a release tarball"
-echo ">> Release tarball: $RELEASE_TARBALL"
+# Use build-dist-release (not tar-release) so we get rel/dist.* configs.
+# The default `tar-release` uses rel/vm.args which is missing `-s lager` —
+# that's the developer/console variant. rel/dist.vm.args has BOTH
+# `-s lager` AND `-s kazoo_apps_app`, so the BEAM auto-starts lager AND
+# kicks off kazoo_apps_app:start/0 on boot — i.e. kazoo apps actually
+# come up, not just the supervision tree.
+# Phase-2 boot test caught this: the package shipped with `tar-release`
+# (=rel/vm.args) produced a BEAM that loaded apps but never started
+# them; nothing connected to CouchDB or RabbitMQ. Switching to
+# `build-dist-release` (rel/dist.*) gets us a functional release.
+#
+# build-dist-release only assembles _rel/kazoo (no tarball); we tar
+# the directory ourselves to control the artifact name.
+make build-dist-release
+[ -d _rel/kazoo ] || die "_rel/kazoo not found — build-dist-release did not produce a release"
+RELEASE_TARBALL="$BUILD_DIR/kazoo-${PKG_VERSION}.tar.gz"
+tar -czf "$RELEASE_TARBALL" -C _rel/kazoo .
+echo ">> Release tarball: $RELEASE_TARBALL (from rel/dist.* config)"
 
 # --- Step 3: Stage files into FHS layout ------------------------------------
 
