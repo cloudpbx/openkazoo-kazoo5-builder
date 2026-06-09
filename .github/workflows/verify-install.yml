@@ -253,3 +253,158 @@ jobs:
             pkill -TERM -f beam.smp 2>/dev/null || true
             sleep 5
           '
+
+  # ----- Phase-2 boot test: does kazoo connect to its dependencies? -----
+  # Phase 1 proved BEAM stays up without CouchDB/RabbitMQ.
+  # Phase 2 stands up real CouchDB + RabbitMQ sidecars, points kazoo at
+  # them, and checks for evidence that kazoo's apps actually established
+  # connections — via `sup kapps_controller running_apps` (RPC into
+  # the live BEAM) and log inspection.
+  #
+  # Debian-only initially. If this passes, mirroring to Rocky 9 is
+  # straightforward (the kazoo Erlang behavior is distro-independent
+  # once BEAM is running).
+  boot-test-phase2-debian-12:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    runs-on: ubuntu-latest
+    needs: boot-test-debian-12
+    steps:
+      - name: Stand up sidecars and verify kazoo connects
+        run: |
+          set -euxo pipefail
+          NET="kazoo-test-${{ github.run_id }}"
+          docker network create "$NET"
+
+          # CouchDB 3.x — kazoo5/rel/ci.config.ini's [couchdb3] driver expects this.
+          docker run -d \
+            --name "couchdb-${{ github.run_id }}" \
+            --network "$NET" --network-alias couchdb \
+            -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=admin \
+            apache/couchdb:3.3
+
+          # RabbitMQ. The default `guest` account is restricted to
+          # localhost; create an explicit kazoo:kazoo user via env vars.
+          docker run -d \
+            --name "rabbitmq-${{ github.run_id }}" \
+            --network "$NET" --network-alias rabbitmq \
+            -e RABBITMQ_DEFAULT_USER=kazoo \
+            -e RABBITMQ_DEFAULT_PASS=kazoo \
+            rabbitmq:3.12
+
+          # Wait for both sidecars
+          echo "waiting for CouchDB..."
+          for i in $(seq 1 60); do
+            if docker exec "couchdb-${{ github.run_id }}" curl -sf http://admin:admin@localhost:5984/ >/dev/null 2>&1; then
+              echo "CouchDB up after ${i}s"; break
+            fi; sleep 2
+          done
+          docker exec "couchdb-${{ github.run_id }}" curl -sf http://admin:admin@localhost:5984/ \
+            || { echo "FAIL: CouchDB not ready"; exit 1; }
+
+          # Bootstrap the three system databases kazoo expects.
+          for db in _users _replicator _global_changes; do
+            docker exec "couchdb-${{ github.run_id }}" \
+              curl -sf -u admin:admin -X PUT "http://localhost:5984/$db" || true
+          done
+
+          echo "waiting for RabbitMQ..."
+          for i in $(seq 1 60); do
+            if docker exec "rabbitmq-${{ github.run_id }}" rabbitmq-diagnostics -q ping >/dev/null 2>&1; then
+              echo "RabbitMQ up after ${i}s"; break
+            fi; sleep 2
+          done
+
+          # Run kazoo on the same network, pointing config at the sidecar hostnames.
+          docker run --rm \
+            --name "kazoo-${{ github.run_id }}" \
+            --network "$NET" \
+            debian:12-slim bash -e -c '
+              set -euxo pipefail
+              apt-get update
+              apt-get install -y --no-install-recommends ca-certificates curl gnupg procps
+
+              curl -fsSL --retry 12 --retry-delay 10 --retry-all-errors \
+                https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
+                -o /usr/share/keyrings/openkazoo.asc
+              echo "deb [signed-by=/usr/share/keyrings/openkazoo.asc] \
+                https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian bookworm main" \
+                > /etc/apt/sources.list.d/openkazoo.list
+              apt-get update
+              apt-get install -y --no-install-recommends kazoo
+
+              # Point config at sidecar hostnames (docker network DNS resolves these).
+              mkdir -p /etc/kazoo
+              cat > /etc/kazoo/config.ini <<EOF
+          [amqp]
+          uri = "amqp://kazoo:kazoo@rabbitmq:5672"
+          pool_size = 10
+
+          [kazoo_apps]
+          cookie = phase2-cookie
+
+          [log]
+          console=info
+          error=error
+
+          [data]
+          config = couchdb3
+
+          [couchdb3]
+          ip = "couchdb"
+          port = 5984
+          username = admin
+          password = admin
+          EOF
+              sed -i "s/^COOKIE=.*/COOKIE=phase2-cookie/" /etc/default/kazoo
+              chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
+
+              nohup runuser -u kazoo -- /opt/kazoo/bin/kazoo foreground \
+                > /tmp/kazoo.out 2>&1 &
+
+              for i in $(seq 1 30); do
+                if pgrep -f beam.smp >/dev/null 2>&1; then
+                  echo "BEAM up after ${i}s"; break
+                fi; sleep 1
+              done
+              pgrep -f beam.smp >/dev/null 2>&1 || { echo "FAIL: BEAM never started"; cat /tmp/kazoo.out; exit 1; }
+
+              # Give kazoo apps time to connect to CouchDB + RabbitMQ.
+              echo "holding 90s for kazoo to connect to sidecars..."
+              sleep 90
+
+              pgrep -f beam.smp >/dev/null 2>&1 || { echo "FAIL: BEAM crashed"; tail -200 /tmp/kazoo.out; exit 1; }
+
+              # Hard proof of life: sup RPCs into the running BEAM.
+              echo "--- sup kapps_controller running_apps ---"
+              if runuser -u kazoo -- /opt/kazoo/bin/sup kapps_controller running_apps 2>&1; then
+                echo "OK: sup RPC succeeded"
+              else
+                echo "WARN: sup RPC failed (kazoo may not be fully bootstrapped)"
+              fi
+
+              echo "--- last 60 lines of kazoo.out ---"
+              tail -60 /tmp/kazoo.out
+
+              # Look for explicit success markers in the log.
+              if grep -iE "amqp.*connect|connected.*amqp" /tmp/kazoo.out >/dev/null; then
+                echo "OK: AMQP connection log present"
+              else
+                echo "WARN: no AMQP connection log line found"
+              fi
+              if grep -iE "couch.*connect|connected.*couch|opened.*db" /tmp/kazoo.out >/dev/null; then
+                echo "OK: CouchDB connection log present"
+              else
+                echo "WARN: no CouchDB connection log line found"
+              fi
+
+              pkill -TERM -f beam.smp 2>/dev/null || true
+              sleep 5
+              echo "OK: phase-2 boot test complete"
+            '
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop "couchdb-${{ github.run_id }}" "rabbitmq-${{ github.run_id }}" 2>/dev/null || true
+          docker rm   "couchdb-${{ github.run_id }}" "rabbitmq-${{ github.run_id }}" 2>/dev/null || true
+          docker network rm "kazoo-test-${{ github.run_id }}" 2>/dev/null || true
