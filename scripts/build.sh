@@ -79,27 +79,30 @@ export FETCH_AS=https://github.com/
 # on the code path. Set it explicitly so both targets find deps + core + apps.
 export ERL_LIBS="$SRC_DIR/deps:$SRC_DIR/core:$SRC_DIR/applications"
 
-echo ">> Running make compile + make build-dist-release (FETCH_AS=$FETCH_AS)"
+# Swap rel/vm.args for rel/dist.vm.args so the release boots `-s lager`
+# (and consequently the kazoo_apps_app start chain produces logs).
+# The bare rel/vm.args ships only `-s kazoo_apps_app` — Phase-2 boot test
+# showed that yields a silent BEAM with no AMQP/CouchDB connection
+# attempts (lager is loaded but never started). dist.vm.args adds
+# `-s lager` before `-s kazoo_apps_app` and is otherwise identical.
+#
+# We do NOT use `make build-dist-release` because upstream
+# rel/dist.relx.config.script is broken (double comma at line 38,
+# undefined APPS at line 54). Sticking with `make tar-release`
+# (which uses the working relx.config.script) + this one-file swap
+# is the minimal viable fix.
+[ -f rel/dist.vm.args ] || die "rel/dist.vm.args missing in upstream — cannot apply lager fix"
+cp rel/dist.vm.args rel/vm.args
+echo ">> Swapped rel/vm.args ← rel/dist.vm.args (adds -s lager)"
+
+echo ">> Running make compile + make tar-release (FETCH_AS=$FETCH_AS)"
 echo ">>   ERL_LIBS=$ERL_LIBS"
 make compile
-# Use build-dist-release (not tar-release) so we get rel/dist.* configs.
-# The default `tar-release` uses rel/vm.args which is missing `-s lager` —
-# that's the developer/console variant. rel/dist.vm.args has BOTH
-# `-s lager` AND `-s kazoo_apps_app`, so the BEAM auto-starts lager AND
-# kicks off kazoo_apps_app:start/0 on boot — i.e. kazoo apps actually
-# come up, not just the supervision tree.
-# Phase-2 boot test caught this: the package shipped with `tar-release`
-# (=rel/vm.args) produced a BEAM that loaded apps but never started
-# them; nothing connected to CouchDB or RabbitMQ. Switching to
-# `build-dist-release` (rel/dist.*) gets us a functional release.
-#
-# build-dist-release only assembles _rel/kazoo (no tarball); we tar
-# the directory ourselves to control the artifact name.
-make build-dist-release
-[ -d _rel/kazoo ] || die "_rel/kazoo not found — build-dist-release did not produce a release"
+make tar-release
+[ -d _rel/kazoo ] || die "_rel/kazoo not found — tar-release did not produce a release"
 RELEASE_TARBALL="$BUILD_DIR/kazoo-${PKG_VERSION}.tar.gz"
 tar -czf "$RELEASE_TARBALL" -C _rel/kazoo .
-echo ">> Release tarball: $RELEASE_TARBALL (from rel/dist.* config)"
+echo ">> Release tarball: $RELEASE_TARBALL"
 
 # --- Step 3: Stage files into FHS layout ------------------------------------
 
