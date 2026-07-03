@@ -16,6 +16,17 @@ load '../test_helper/common.bash'
   grep -q "^WantedBy=multi-user.target" "$f"
 }
 
+@test "kazoo.service reads the generated cookie file before /etc/default/kazoo" {
+  # /etc/kazoo.cookie holds the auto-generated distribution cookie; it must be
+  # listed before /etc/default/kazoo so an operator-set COOKIE there wins.
+  local f="$REPO_ROOT/packaging/common/kazoo.service"
+  grep -q "EnvironmentFile=-/etc/kazoo.cookie" "$f"
+  local cookie_ln default_ln
+  cookie_ln=$(grep -n "EnvironmentFile=-/etc/kazoo.cookie" "$f" | head -1 | cut -d: -f1)
+  default_ln=$(grep -n "EnvironmentFile=-/etc/default/kazoo" "$f" | head -1 | cut -d: -f1)
+  [ "$cookie_ln" -lt "$default_ln" ]
+}
+
 @test "kazoo.sysusers declares user kazoo with home in /var/lib/kazoo" {
   local f="$REPO_ROOT/packaging/common/kazoo.sysusers"
   [ -f "$f" ]
@@ -32,10 +43,18 @@ load '../test_helper/common.bash'
   grep -qE "^d +/var/log/kazoo +0750 +kazoo +kazoo " "$f"
 }
 
-@test "kazoo.defaults defines NODE_NAME, COOKIE, and ERL_FLAGS as documented env" {
+@test "kazoo.defaults defines NODE_NAME and ERL_FLAGS as documented env" {
   local f="$REPO_ROOT/packaging/common/kazoo.defaults"
   [ -f "$f" ]
   grep -q "^NODE_NAME=" "$f"
-  grep -q "^COOKIE=" "$f"
   grep -q "^ERL_FLAGS=" "$f"
+}
+
+@test "kazoo.defaults ships no insecure hardcoded COOKIE default" {
+  # The old 'COOKIE=change-me-please' default was a security footgun. The cookie
+  # is now auto-generated at install time; kazoo.defaults must not set an active
+  # COOKIE value (a commented example for cluster operators is fine).
+  local f="$REPO_ROOT/packaging/common/kazoo.defaults"
+  ! grep -q "change-me-please" "$f"
+  ! grep -qE "^COOKIE=" "$f"
 }

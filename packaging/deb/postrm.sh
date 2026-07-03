@@ -13,6 +13,8 @@ case "$1" in
   purge)
     rm -rf /var/lib/kazoo
     rm -rf /var/log/kazoo
+    # Remove the generated distribution cookie (a secret; don't leave it behind)
+    rm -f /etc/kazoo.cookie
     if [ -d /run/systemd/system ]; then
       systemctl daemon-reload || true
     fi
