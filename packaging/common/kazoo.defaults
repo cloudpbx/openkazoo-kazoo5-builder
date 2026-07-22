@@ -3,12 +3,16 @@
 # Edit this file to customize. Marked as a conffile / %config(noreplace);
 # package upgrades will not overwrite your changes.
 
-# Erlang node short name for this host. Must be unique per cluster member.
-NODE_NAME=kazoo_apps@127.0.0.1
+# Erlang long node name for this host. Must be unique per cluster member.
+# The host part MUST be a resolvable FQDN or IP (the release runs with
+# `-name`, which rejects a bare short hostname with `nodistribution`).
+# NOTE: the relx runner (/opt/kazoo/bin/kazoo) reads KAZOO_NODE, not NODE_NAME.
+KAZOO_NODE=kazoo_apps@127.0.0.1
 
 # Erlang distribution cookie. CHANGE THIS to a strong secret in production.
 # All nodes in the same Kazoo cluster must share the same cookie.
-COOKIE=change-me-please
+# NOTE: the relx runner reads KAZOO_COOKIE, not COOKIE.
+KAZOO_COOKIE=change-me-please
 
 # Additional Erlang VM flags (e.g. memory limits).
 ERL_FLAGS=""
