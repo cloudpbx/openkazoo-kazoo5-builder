@@ -51,6 +51,35 @@ git clone --depth 1 --branch "$KAZOO_VERSION" \
 # tag like "5.4.0", we use that verbatim. If it's a branch name (e.g. "master"),
 # we synthesize a pseudo-version like "5.4.0~master.YYYYMMDD.shortsha".
 cd "$SRC_DIR"
+
+# --- Work around upstream bug in rel/dist.relx.config.script ----------------
+# The {release,...} tuple closes with "}," and the next list element line is
+# ",{mode, prod}" (leading-comma style), producing ",," -> the release config
+# fails to parse and `make build-dist-release` dies with:
+#   {error,{_,erl_parse,["syntax error before: ","','"]}}  (build-release.escript:71)
+# Drop the trailing comma after the release tuple's closing brace. Portable
+# (awk), idempotent, and ASSERTED below so we fail loudly if upstream ever
+# restructures this file (so the workaround can't silently rot).
+RELX_SCRIPT="rel/dist.relx.config.script"
+if [ -f "$RELX_SCRIPT" ]; then
+  awk '
+    /^[[:space:]]*},$/ {
+      cur=$0
+      if ((getline nxt) > 0) {
+        if (nxt ~ /^[[:space:]]*,\{mode, prod\}$/) { sub(/,$/,"",cur) }
+        print cur; print nxt; next
+      } else { print cur; next }
+    }
+    { print }
+  ' "$RELX_SCRIPT" > "$RELX_SCRIPT.tmp" && mv "$RELX_SCRIPT.tmp" "$RELX_SCRIPT"
+  if awk 'p ~ /^[[:space:]]*},$/ && /^[[:space:]]*,\{mode, prod\}$/ {bad=1} {p=$0} END{exit bad?1:0}' "$RELX_SCRIPT"; then
+    echo ">> Patched stray double-comma in $RELX_SCRIPT (upstream workaround)"
+  else
+    echo "ERROR: failed to patch double-comma in $RELX_SCRIPT — upstream layout changed?" >&2
+    exit 1
+  fi
+fi
+
 RAW_VERSION="$(cat VERSION 2>/dev/null || echo "$KAZOO_VERSION")"
 
 if [[ "$KAZOO_VERSION" =~ ^[0-9] ]]; then
