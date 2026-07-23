@@ -102,9 +102,9 @@ These didn't block the MVP but should be filed as issues when there's time:
 
 | # | Item | Severity |
 |---|---|---|
-| 1 | `COOKIE=change-me-please` ships as default in `/etc/default/kazoo` | Important — security |
+| 1 | ~~`COOKIE=change-me-please` ships as default in `/etc/default/kazoo`~~ | ✅ Done — cookie now auto-generated into `/etc/kazoo.cookie` on first install (see `feature/security-hardening`) |
 | 2 | `prerm.sh` only stops the service, `preun.sh` also disables it (deb/rpm asymmetry) | Minor |
-| 3 | Supply chain: `rebar3` binary + OTP source tarball fetched without SHA-256 verification | Important — supply chain |
+| 3 | ~~Supply chain: `rebar3` binary + OTP source tarball fetched without SHA-256 verification~~ | ✅ Done — pinned in `config/*.sha256`, verified in both Dockerfiles (see `feature/security-hardening`) |
 | 4 | Org slug `cloudpbx` hardcoded in 5 source files + INSTALL.md (sed-replaceable) | Minor |
 | 5 | `tests/.gitkeep`, `docker/.gitkeep`, etc. are now vestigial | Minor — cleanup PR |
 | 6 | `verify-install.yml` workflow_run filter with `branches: [main]` was a footgun (already fixed) | Done |

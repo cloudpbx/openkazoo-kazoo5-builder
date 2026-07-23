@@ -11,6 +11,12 @@ OTP_VERSION    := $(shell cat config/otp.version)
 REBAR_VERSION  := $(shell cat config/rebar.version)
 PKG_REVISION   := $(shell cat config/package.revision)
 
+# SHA-256 pins for the two artifacts fetched over the network at image-build
+# time (OTP source tarball + rebar3 binary). Verified in the Dockerfiles so a
+# tampered or corrupted download fails the build instead of being trusted.
+OTP_SHA256     := $(shell cat config/otp.sha256)
+REBAR_SHA256   := $(shell cat config/rebar.sha256)
+
 # --- Required per-invocation variable ---
 TARGET         ?=
 
@@ -48,6 +54,8 @@ docker-build: check-target  ## Build the docker image for TARGET
 	docker build \
 	  --build-arg OTP_VERSION=$(OTP_VERSION) \
 	  --build-arg REBAR_VERSION=$(REBAR_VERSION) \
+	  --build-arg OTP_SHA256=$(OTP_SHA256) \
+	  --build-arg REBAR_SHA256=$(REBAR_SHA256) \
 	  -t openkazoo-kazoo5-builder:$(TARGET) \
 	  -f docker/Dockerfile.$(TARGET) .
 

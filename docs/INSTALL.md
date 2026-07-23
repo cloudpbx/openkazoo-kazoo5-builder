@@ -45,8 +45,16 @@ sudo dnf install -y kazoo
 
 ## Post-install configuration
 
-Edit `/etc/default/kazoo` to set at minimum:
-- `COOKIE` — a strong shared secret across cluster members. **Required.**
+A strong random Erlang distribution **cookie is generated automatically** on
+first install into `/etc/kazoo.cookie` (mode `0640`, `root:kazoo`) — no action
+needed for a single node.
+
+For a **multi-node cluster**, every member must share the *same* cookie: set
+`COOKIE` in `/etc/default/kazoo` (this overrides the generated per-host value)
+and copy the identical value to each node.
+
+Edit `/etc/default/kazoo` to set:
+- `COOKIE` — **only for clusters**: a strong secret shared by all members.
 - `NODE_NAME` — defaults to `kazoo_apps@127.0.0.1`; change for multi-node deployments.
 
 Then start the service:

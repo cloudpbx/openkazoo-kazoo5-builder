@@ -27,6 +27,15 @@ load '../test_helper/common.bash'
   grep -q "make install" "$f"
 }
 
+@test "Dockerfile.debian-12 verifies SHA-256 of the OTP tarball and rebar3 binary" {
+  local f="$REPO_ROOT/docker/Dockerfile.debian-12"
+  grep -q "^ARG OTP_SHA256=" "$f"
+  grep -q "^ARG REBAR_SHA256=" "$f"
+  # Both downloads are checked with sha256sum -c before use
+  grep -q 'echo "${OTP_SHA256}  /tmp/otp.tar.gz" | sha256sum -c -' "$f"
+  grep -q 'echo "${REBAR_SHA256}  /usr/local/bin/rebar3" | sha256sum -c -' "$f"
+}
+
 @test "Dockerfile.debian-12 sets WORKDIR /work and ENTRYPOINT to build.sh" {
   local f="$REPO_ROOT/docker/Dockerfile.debian-12"
   grep -q "^WORKDIR /work" "$f"
