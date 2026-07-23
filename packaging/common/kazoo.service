@@ -10,7 +10,7 @@ User=kazoo
 Group=kazoo
 # The auto-generated distribution cookie (written by the post-install
 # scriptlet on first install) is read first; /etc/default/kazoo is read second
-# so an operator who sets COOKIE there — e.g. a shared cluster cookie —
+# so an operator who sets KAZOO_COOKIE there — e.g. a shared cluster cookie —
 # overrides the generated per-host default.
 EnvironmentFile=-/etc/kazoo.cookie
 EnvironmentFile=-/etc/default/kazoo

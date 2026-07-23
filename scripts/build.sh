@@ -51,6 +51,35 @@ git clone --depth 1 --branch "$KAZOO_VERSION" \
 # tag like "5.4.0", we use that verbatim. If it's a branch name (e.g. "master"),
 # we synthesize a pseudo-version like "5.4.0~master.YYYYMMDD.shortsha".
 cd "$SRC_DIR"
+
+# --- Work around broken upstream rel/dist.relx.config.script ----------------
+# On 2600hz/kazoo5@master the dist release script has NEVER built. It is a
+# stripped-down, broken copy of the other release scripts:
+#   1. a stray "}," immediately followed by ",{mode, prod}" -> ",," ->
+#      `make build-dist-release` dies with erl_parse "syntax error before ','";
+#   2. even with that fixed, it omits the `Apps` and `APPS` definitions the
+#      other variants have (and builds the release from `Core ++ Deps` only),
+#      yet still ends with `... ++ APPS` -> file:script fails with
+#      {error,{_,file,{error,{unbound_var,'APPS'}}}}.
+# The CI variant (rel/ci.relx.config.script) is complete and correct: it
+# defines Apps/Core/Deps + APPS and assembles the full release. The two differ
+# only in intent — the runtime config (sys.config + vm.args) is chosen by
+# rel/dist.relx.config (-> dist.sys.config + dist.vm.args), NOT by the script —
+# so reusing the ci script for the dist build yields a correct dist release
+# (full app list + dist runtime config). Replace the broken script with it.
+# Asserted so the build fails loudly if the upstream layout changes.
+DIST_SCRIPT="rel/dist.relx.config.script"
+CI_SCRIPT="rel/ci.relx.config.script"
+if [ -f "$DIST_SCRIPT" ] && [ -f "$CI_SCRIPT" ]; then
+  cp "$CI_SCRIPT" "$DIST_SCRIPT"
+  grep -q 'APPS = lists:foldl' "$DIST_SCRIPT" \
+    || { echo "ERROR: dist relx script workaround failed (no APPS in $CI_SCRIPT?)" >&2; exit 1; }
+  echo ">> Replaced broken $DIST_SCRIPT with $CI_SCRIPT (upstream workaround)"
+else
+  echo "ERROR: expected $DIST_SCRIPT and $CI_SCRIPT to exist — upstream layout changed?" >&2
+  exit 1
+fi
+
 RAW_VERSION="$(cat VERSION 2>/dev/null || echo "$KAZOO_VERSION")"
 
 if [[ "$KAZOO_VERSION" =~ ^[0-9] ]]; then

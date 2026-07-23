@@ -132,14 +132,19 @@ jobs:
           username = admin
           password = admin
           EOF
-            sed -i "s/^COOKIE=.*/COOKIE=boot-test-cookie/" /etc/default/kazoo
-
             chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
 
-            # Run kazoo as the kazoo user, capture stdout to a log file
-            # Redirect inside the kazoo-user shell so the redirect survives the user switch.
-            nohup runuser -u kazoo -- bash -c \
-              '/opt/kazoo/bin/kazoo foreground > /tmp/kazoo.out 2>&1' &
+            # Run kazoo as the kazoo user, capture stdout to a log file.
+            # Launch exactly as the systemd unit does: source /etc/kazoo.cookie
+            # (the auto-generated KAZOO_COOKIE) then /etc/default/kazoo (KAZOO_NODE,
+            # a valid long node name) so both reach the relx runner. Without
+            # KAZOO_NODE the node is kazoo_apps@<short-hostname>, which -name
+            # rejects -> net_kernel nodistribution -> the BEAM aborts.
+            # Redirect inside the kazoo-user shell so it survives the user switch.
+            printf "%s\n" "set -a" ". /etc/kazoo.cookie" ". /etc/default/kazoo" "set +a" \
+              "cd /var/lib/kazoo" "exec /opt/kazoo/bin/kazoo foreground" > /tmp/launch-kazoo.sh
+            chmod 755 /tmp/launch-kazoo.sh
+            nohup runuser -u kazoo -- bash /tmp/launch-kazoo.sh > /tmp/kazoo.out 2>&1 &
             KZ_SHELL_PID=$!
             echo "started kazoo (shell pid=$KZ_SHELL_PID)"
 
@@ -219,12 +224,18 @@ jobs:
           username = admin
           password = admin
           EOF
-            sed -i "s/^COOKIE=.*/COOKIE=boot-test-cookie/" /etc/default/kazoo
             chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
 
-            # Redirect inside the kazoo-user shell so the redirect survives the user switch.
-            nohup runuser -u kazoo -- bash -c \
-              '/opt/kazoo/bin/kazoo foreground > /tmp/kazoo.out 2>&1' &
+            # Launch exactly as the systemd unit does: source /etc/kazoo.cookie
+            # (auto-generated KAZOO_COOKIE) then /etc/default/kazoo (KAZOO_NODE, a
+            # valid long node name) so both reach the relx runner. Without
+            # KAZOO_NODE the node is kazoo_apps@<short-hostname>, which -name
+            # rejects -> net_kernel nodistribution -> BEAM aborts.
+            # Redirect inside the kazoo-user shell so it survives the user switch.
+            printf "%s\n" "set -a" ". /etc/kazoo.cookie" ". /etc/default/kazoo" "set +a" \
+              "cd /var/lib/kazoo" "exec /opt/kazoo/bin/kazoo foreground" > /tmp/launch-kazoo.sh
+            chmod 755 /tmp/launch-kazoo.sh
+            nohup runuser -u kazoo -- bash /tmp/launch-kazoo.sh > /tmp/kazoo.out 2>&1 &
             echo "started kazoo"
 
             for i in $(seq 1 30); do
@@ -357,12 +368,16 @@ jobs:
           username = admin
           password = admin
           EOF
-              sed -i "s/^COOKIE=.*/COOKIE=phase2-cookie/" /etc/default/kazoo
               chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
 
-              # Redirect inside the kazoo-user shell so the redirect survives the user switch.
-              nohup runuser -u kazoo -- bash -c \
-                '/opt/kazoo/bin/kazoo foreground > /tmp/kazoo.out 2>&1' &
+              # Launch as systemd does: source /etc/kazoo.cookie (auto-generated
+              # KAZOO_COOKIE) then /etc/default/kazoo (KAZOO_NODE) so both reach
+              # the relx runner (see phase-1 note).
+              # Redirect inside the kazoo-user shell so it survives the user switch.
+              printf "%s\n" "set -a" ". /etc/kazoo.cookie" ". /etc/default/kazoo" "set +a" \
+                "cd /var/lib/kazoo" "exec /opt/kazoo/bin/kazoo foreground" > /tmp/launch-kazoo.sh
+              chmod 755 /tmp/launch-kazoo.sh
+              nohup runuser -u kazoo -- bash /tmp/launch-kazoo.sh > /tmp/kazoo.out 2>&1 &
 
               for i in $(seq 1 30); do
                 if pgrep -f beam.smp >/dev/null 2>&1; then
