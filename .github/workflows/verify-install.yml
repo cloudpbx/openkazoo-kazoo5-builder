@@ -132,18 +132,16 @@ jobs:
           username = admin
           password = admin
           EOF
-            sed -i "s/^KAZOO_COOKIE=.*/KAZOO_COOKIE=boot-test-cookie/" /etc/default/kazoo
-
             chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
 
             # Run kazoo as the kazoo user, capture stdout to a log file.
-            # Launch exactly as the systemd unit does: source /etc/default/kazoo
-            # so KAZOO_NODE (a valid long node name) and KAZOO_COOKIE reach the
-            # relx runner. Running bin/kazoo without them leaves the node as
-            # kazoo_apps@<short-hostname>, which -name rejects -> net_kernel
-            # fails with nodistribution -> the BEAM aborts before any app starts.
+            # Launch exactly as the systemd unit does: source /etc/kazoo.cookie
+            # (the auto-generated KAZOO_COOKIE) then /etc/default/kazoo (KAZOO_NODE,
+            # a valid long node name) so both reach the relx runner. Without
+            # KAZOO_NODE the node is kazoo_apps@<short-hostname>, which -name
+            # rejects -> net_kernel nodistribution -> the BEAM aborts.
             # Redirect inside the kazoo-user shell so it survives the user switch.
-            printf "%s\n" "set -a" ". /etc/default/kazoo" "set +a" \
+            printf "%s\n" "set -a" ". /etc/kazoo.cookie" ". /etc/default/kazoo" "set +a" \
               "cd /var/lib/kazoo" "exec /opt/kazoo/bin/kazoo foreground" > /tmp/launch-kazoo.sh
             chmod 755 /tmp/launch-kazoo.sh
             nohup runuser -u kazoo -- bash /tmp/launch-kazoo.sh > /tmp/kazoo.out 2>&1 &
@@ -226,15 +224,15 @@ jobs:
           username = admin
           password = admin
           EOF
-            sed -i "s/^KAZOO_COOKIE=.*/KAZOO_COOKIE=boot-test-cookie/" /etc/default/kazoo
             chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
 
-            # Launch exactly as the systemd unit does: source /etc/default/kazoo
-            # so KAZOO_NODE (a valid long node name) and KAZOO_COOKIE reach the
-            # relx runner. Without them the node is kazoo_apps@<short-hostname>,
-            # which -name rejects -> net_kernel nodistribution -> BEAM aborts.
+            # Launch exactly as the systemd unit does: source /etc/kazoo.cookie
+            # (auto-generated KAZOO_COOKIE) then /etc/default/kazoo (KAZOO_NODE, a
+            # valid long node name) so both reach the relx runner. Without
+            # KAZOO_NODE the node is kazoo_apps@<short-hostname>, which -name
+            # rejects -> net_kernel nodistribution -> BEAM aborts.
             # Redirect inside the kazoo-user shell so it survives the user switch.
-            printf "%s\n" "set -a" ". /etc/default/kazoo" "set +a" \
+            printf "%s\n" "set -a" ". /etc/kazoo.cookie" ". /etc/default/kazoo" "set +a" \
               "cd /var/lib/kazoo" "exec /opt/kazoo/bin/kazoo foreground" > /tmp/launch-kazoo.sh
             chmod 755 /tmp/launch-kazoo.sh
             nohup runuser -u kazoo -- bash /tmp/launch-kazoo.sh > /tmp/kazoo.out 2>&1 &
@@ -370,13 +368,13 @@ jobs:
           username = admin
           password = admin
           EOF
-              sed -i "s/^KAZOO_COOKIE=.*/KAZOO_COOKIE=phase2-cookie/" /etc/default/kazoo
               chown -R kazoo:kazoo /var/lib/kazoo /var/log/kazoo /etc/kazoo
 
-              # Launch as systemd does: source /etc/default/kazoo so KAZOO_NODE
-              # and KAZOO_COOKIE reach the relx runner (see phase-1 note).
+              # Launch as systemd does: source /etc/kazoo.cookie (auto-generated
+              # KAZOO_COOKIE) then /etc/default/kazoo (KAZOO_NODE) so both reach
+              # the relx runner (see phase-1 note).
               # Redirect inside the kazoo-user shell so it survives the user switch.
-              printf "%s\n" "set -a" ". /etc/default/kazoo" "set +a" \
+              printf "%s\n" "set -a" ". /etc/kazoo.cookie" ". /etc/default/kazoo" "set +a" \
                 "cd /var/lib/kazoo" "exec /opt/kazoo/bin/kazoo foreground" > /tmp/launch-kazoo.sh
               chmod 755 /tmp/launch-kazoo.sh
               nohup runuser -u kazoo -- bash /tmp/launch-kazoo.sh > /tmp/kazoo.out 2>&1 &

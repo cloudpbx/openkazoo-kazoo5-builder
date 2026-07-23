@@ -17,6 +17,14 @@ load '../test_helper/common.bash'
   grep -q "systemctl daemon-reload" "$p"
 }
 
+@test "rpm post.sh generates a random cookie into /etc/kazoo.cookie, guarded and 0640" {
+  local p="$REPO_ROOT/packaging/rpm/post.sh"
+  grep -q '\[ ! -e /etc/kazoo.cookie \]' "$p"
+  grep -q "/dev/urandom" "$p"
+  grep -q "chmod 640 /etc/kazoo.cookie" "$p"
+  ! grep -q "change-me-please" "$p"
+}
+
 @test "rpm preun.sh stops the service only on final removal" {
   local p="$REPO_ROOT/packaging/rpm/preun.sh"
   # On RPM, $1=0 means "final uninstall"; $1=1 means "upgrade in progress"
@@ -28,4 +36,6 @@ load '../test_helper/common.bash'
   local p="$REPO_ROOT/packaging/rpm/postun.sh"
   grep -q "rm -rf /var/lib/kazoo" "$p"
   grep -q "rm -rf /var/log/kazoo" "$p"
+  # The generated cookie is a secret; final removal must delete it
+  grep -q "rm -f /etc/kazoo.cookie" "$p"
 }

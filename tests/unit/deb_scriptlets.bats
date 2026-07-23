@@ -25,6 +25,16 @@ load '../test_helper/common.bash'
   grep -q "systemctl daemon-reload" "$p"
 }
 
+@test "postinst.sh generates a random cookie into /etc/kazoo.cookie, guarded and 0640" {
+  local p="$REPO_ROOT/packaging/deb/postinst.sh"
+  # Only generate when the file is absent (don't rotate an in-use cookie)
+  grep -q '\[ ! -e /etc/kazoo.cookie \]' "$p"
+  grep -q "/dev/urandom" "$p"
+  grep -q "chmod 640 /etc/kazoo.cookie" "$p"
+  # Must NOT ship the old insecure default
+  ! grep -q "change-me-please" "$p"
+}
+
 @test "prerm.sh stops the service idempotently" {
   local p="$REPO_ROOT/packaging/deb/prerm.sh"
   grep -q "systemctl stop kazoo" "$p"
@@ -36,4 +46,6 @@ load '../test_helper/common.bash'
   grep -q 'purge)' "$p"
   grep -q "rm -rf /var/lib/kazoo" "$p"
   grep -q "rm -rf /var/log/kazoo" "$p"
+  # The generated cookie is a secret; purge must remove it
+  grep -q "rm -f /etc/kazoo.cookie" "$p"
 }

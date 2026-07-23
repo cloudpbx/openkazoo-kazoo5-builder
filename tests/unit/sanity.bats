@@ -17,6 +17,27 @@ load '../test_helper/common.bash'
   done
 }
 
+@test "SHA-256 pins are valid 64-char hex" {
+  local v
+  for f in otp.sha256 rebar.sha256; do
+    [ -f "$REPO_ROOT/config/$f" ] || { echo "MISSING: config/$f"; return 1; }
+    v=$(cat "$REPO_ROOT/config/$f")
+    echo "$v" | grep -qE '^[0-9a-f]{64}$' || { echo "bad checksum in $f: $v"; return 1; }
+  done
+}
+
+@test "Dockerfile SHA-256 defaults match the config pins" {
+  # The Dockerfiles default these ARGs; they must equal config/*.sha256 so a
+  # bare 'docker build' verifies against the same value the Makefile passes.
+  local otp rebar
+  otp=$(cat "$REPO_ROOT/config/otp.sha256")
+  rebar=$(cat "$REPO_ROOT/config/rebar.sha256")
+  for d in debian-12 el9; do
+    grep -q "^ARG OTP_SHA256=${otp}$" "$REPO_ROOT/docker/Dockerfile.$d"
+    grep -q "^ARG REBAR_SHA256=${rebar}$" "$REPO_ROOT/docker/Dockerfile.$d"
+  done
+}
+
 @test "make help mentions both targets" {
   run make -C "$REPO_ROOT" help
   assert_status 0

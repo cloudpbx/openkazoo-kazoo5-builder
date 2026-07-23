@@ -9,10 +9,17 @@
 # NOTE: the relx runner (/opt/kazoo/bin/kazoo) reads KAZOO_NODE, not NODE_NAME.
 KAZOO_NODE=kazoo_apps@127.0.0.1
 
-# Erlang distribution cookie. CHANGE THIS to a strong secret in production.
-# All nodes in the same Kazoo cluster must share the same cookie.
-# NOTE: the relx runner reads KAZOO_COOKIE, not COOKIE.
-KAZOO_COOKIE=change-me-please
+# Erlang distribution cookie.
+# On first install the post-install scriptlet generates a strong random cookie
+# into /etc/kazoo.cookie (mode 0640, root:kazoo) — this file is NOT overwritten
+# on upgrade. That per-host default is fine for a single node.
+#
+# NOTE: the relx runner (/opt/kazoo/bin/kazoo) reads KAZOO_COOKIE, not COOKIE.
+#
+# For a MULTI-NODE CLUSTER, every member must share the SAME cookie: set it
+# here (this line overrides the generated one) and copy the identical value to
+# each node.
+#KAZOO_COOKIE=set-a-strong-shared-secret-for-clusters
 
 # Additional Erlang VM flags (e.g. memory limits).
 ERL_FLAGS=""
