@@ -20,7 +20,7 @@ REBAR_SHA256   := $(shell cat config/rebar.sha256)
 # --- Required per-invocation variable ---
 TARGET         ?=
 
-VALID_TARGETS  := debian-12 el9
+VALID_TARGETS  := debian-11 debian-12 el9
 
 # --- Build directories ---
 BUILD_DIR      := build

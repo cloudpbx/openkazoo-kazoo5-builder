@@ -32,7 +32,7 @@ load '../test_helper/common.bash'
   local otp rebar
   otp=$(cat "$REPO_ROOT/config/otp.sha256")
   rebar=$(cat "$REPO_ROOT/config/rebar.sha256")
-  for d in debian-12 el9; do
+  for d in debian-11 debian-12 el9; do
     grep -q "^ARG OTP_SHA256=${otp}$" "$REPO_ROOT/docker/Dockerfile.$d"
     grep -q "^ARG REBAR_SHA256=${rebar}$" "$REPO_ROOT/docker/Dockerfile.$d"
   done
@@ -41,6 +41,7 @@ load '../test_helper/common.bash'
 @test "make help mentions both targets" {
   run make -C "$REPO_ROOT" help
   assert_status 0
+  assert_output_contains "debian-11"
   assert_output_contains "debian-12"
   assert_output_contains "el9"
 }
