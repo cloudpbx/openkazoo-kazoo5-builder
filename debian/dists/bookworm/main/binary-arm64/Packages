@@ -10,9 +10,9 @@ Homepage: https://github.com/cloudpbx/openkazoo-kazoo5-builder
 Priority: optional
 Section: default
 Filename: pool/main/k/kazoo/kazoo_5.4.0~master.20260731.3d0b5e63-1~bookworm1_arm64.deb
-Size: 85325278
-SHA256: afd2372ea3a49b24be059e1f9af00e9a054f29f843a75f2ff5ce40b112c912e8
-SHA1: 2f246ac4014a73fac8a2ae44f27774fb2aeef183
-MD5sum: fb9ac02e157a16abb67d0bad649ba9e2
+Size: 85322306
+SHA256: 8425000b1cc83e75d69aaefc80dd8ef95f0f1d4ebcedd2fb7118477835e6ca28
+SHA1: 0c7ae1df3c11d7a519195cfe67ee6c4b5e0a57d5
+MD5sum: 56375026b559b39e3369cd5593e05307
 Description: Kazoo telephony platform (community build of 2600hz/kazoo5)
 
