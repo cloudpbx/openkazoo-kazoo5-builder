@@ -1,0 +1,18 @@
+Package: kazoo
+Version: 5.4.0~master.20260731.3d0b5e63-1~bullseye1
+License: MPL-1.1
+Vendor: none
+Architecture: amd64
+Maintainer: openkazoo <support@cloudpbx.example>
+Installed-Size: 151367
+Depends: adduser, systemd, libssl3, libncurses6
+Homepage: https://github.com/cloudpbx/openkazoo-kazoo5-builder
+Priority: optional
+Section: default
+Filename: pool/main/k/kazoo/kazoo_5.4.0~master.20260731.3d0b5e63-1~bullseye1_amd64.deb
+Size: 87778086
+SHA256: bc5e84c1c5fb459752d22fadb7c52cd06c1bdd9bebe46cf8f1ed9cf8b935d0f4
+SHA1: f56485c4840b042898da8ad2534745d405e3a89c
+MD5sum: b1171ea5dc64526495a2025213afe30c
+Description: Kazoo telephony platform (community build of 2600hz/kazoo5)
+

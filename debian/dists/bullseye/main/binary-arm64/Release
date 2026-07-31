@@ -1,0 +1,6 @@
+Archive: oldstable
+Component: main
+Origin: openkazoo
+Label: openkazoo-kazoo5-builder
+Architecture: arm64
+Description: Community-built Kazoo packages for Debian 11

@@ -2,7 +2,16 @@ Origin: openkazoo
 Label: openkazoo-kazoo5-builder
 Suite: stable
 Codename: bookworm
-Architectures: amd64
+Architectures: amd64 arm64
 Components: main
 Description: Community-built Kazoo packages for Debian 12
+SignWith: 31B23BA9A318761AB12B01A5BAAAF143D536265D
+
+Origin: openkazoo
+Label: openkazoo-kazoo5-builder
+Suite: oldstable
+Codename: bullseye
+Architectures: amd64 arm64
+Components: main
+Description: Community-built Kazoo packages for Debian 11
 SignWith: 31B23BA9A318761AB12B01A5BAAAF143D536265D
