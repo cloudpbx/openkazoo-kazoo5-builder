@@ -29,6 +29,8 @@ sudo dnf install -y kazoo
 
 Both install paths are validated in CI by `.github/workflows/verify-install.yml`.
 
+**Supported build matrix:** debian-11 (amd64+arm64), debian-12 (amd64+arm64), el9 (amd64).
+
 ---
 
 ## What's published
