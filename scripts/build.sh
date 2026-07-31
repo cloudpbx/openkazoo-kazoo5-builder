@@ -151,9 +151,11 @@ OTP_MAJ_MIN="${OTP_VERSION%.*}"
 
 # Debian suite + native architecture for the .deb (arm64 builds run on
 # native arm64 runners, so dpkg reports the correct arch here).
+# The OpenSSL runtime package differs by suite: bookworm ships libssl3,
+# bullseye ships libssl1.1 (OTP's crypto NIF links the system libssl).
 case "$TARGET" in
-  debian-11) DEB_SUITE=bullseye ;;
-  debian-12) DEB_SUITE=bookworm ;;
+  debian-11) DEB_SUITE=bullseye; DEB_SSL_DEP=libssl1.1 ;;
+  debian-12) DEB_SUITE=bookworm; DEB_SSL_DEP=libssl3 ;;
   el9)       DEB_SUITE= ;;
   *)         die "unknown TARGET for suite mapping: $TARGET" ;;
 esac
@@ -171,7 +173,7 @@ case "$TARGET" in
         --architecture "$DEB_ARCH" \
         --depends "adduser" \
         --depends "systemd" \
-        --depends "libssl3" \
+        --depends "$DEB_SSL_DEP" \
         --depends "libncurses6" \
         --maintainer "openkazoo <support@cloudpbx.example>" \
         --description "Kazoo telephony platform (community build of 2600hz/kazoo5)" \
