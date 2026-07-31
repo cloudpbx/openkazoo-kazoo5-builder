@@ -19,3 +19,12 @@ setup() {
   assert_status 2
   rmdir "$empty"
 }
+
+@test "publish.sh hosts both bookworm and bullseye codenames" {
+  grep -q "Codename: bookworm" "$REPO_ROOT/scripts/publish.sh"
+  grep -q "Codename: bullseye" "$REPO_ROOT/scripts/publish.sh"
+}
+
+@test "publish.sh declares both amd64 and arm64 architectures" {
+  grep -q "Architectures: amd64 arm64" "$REPO_ROOT/scripts/publish.sh"
+}

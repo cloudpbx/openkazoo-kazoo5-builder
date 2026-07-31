@@ -59,14 +59,28 @@ Origin: openkazoo
 Label: openkazoo-kazoo5-builder
 Suite: stable
 Codename: bookworm
-Architectures: amd64
+Architectures: amd64 arm64
 Components: main
 Description: Community-built Kazoo packages for Debian 12
 SignWith: $FPR
+
+Origin: openkazoo
+Label: openkazoo-kazoo5-builder
+Suite: oldstable
+Codename: bullseye
+Architectures: amd64 arm64
+Components: main
+Description: Community-built Kazoo packages for Debian 11
+SignWith: $FPR
 EOF
   for deb in "${DEBS[@]}"; do
-    echo ">> reprepro includedeb bookworm: $deb"
-    reprepro -b "$APT_DIR" includedeb bookworm "$deb"
+    case "$deb" in
+      *~bookworm*) codename=bookworm ;;
+      *~bullseye*) codename=bullseye ;;
+      *) die "cannot determine codename from filename: $deb" ;;
+    esac
+    echo ">> reprepro includedeb $codename: $deb"
+    reprepro -b "$APT_DIR" includedeb "$codename" "$deb"
   done
 fi
 
