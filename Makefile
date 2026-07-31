@@ -93,4 +93,4 @@ clean:  ## Remove build outputs (does NOT remove docker images)
 
 .PHONY: sparkly-clean
 sparkly-clean: clean  ## Also remove docker images
-	-docker image rm openkazoo-kazoo5-builder:debian-12 openkazoo-kazoo5-builder:el9 2>/dev/null
+	-docker image rm openkazoo-kazoo5-builder:debian-11 openkazoo-kazoo5-builder:debian-12 openkazoo-kazoo5-builder:el9 2>/dev/null
