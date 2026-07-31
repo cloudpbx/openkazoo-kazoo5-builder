@@ -2,7 +2,7 @@
 # build.sh — universal entrypoint for producing a Kazoo .deb or .rpm.
 #
 # Required env vars:
-#   TARGET           one of: debian-12, el9
+#   TARGET           one of: debian-11, debian-12, el9
 #   KAZOO_VERSION    upstream ref to build (tag like "5.4.0", or "master" for tip)
 #   OTP_VERSION      Erlang/OTP version installed in the build image
 #   PKG_REVISION     packaging-only revision (bumped for postinst fixes etc.)
@@ -19,14 +19,14 @@ set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 2; }
 
-[ -n "${TARGET:-}"        ] || die "TARGET is required (debian-12 or el9)"
+[ -n "${TARGET:-}"        ] || die "TARGET is required (debian-11, debian-12, or el9)"
 [ -n "${KAZOO_VERSION:-}" ] || die "KAZOO_VERSION is required"
 [ -n "${OTP_VERSION:-}"   ] || die "OTP_VERSION is required"
 [ -n "${PKG_REVISION:-}"  ] || die "PKG_REVISION is required"
 
 case "$TARGET" in
-  debian-12|el9) ;;
-  *) die "TARGET=$TARGET is invalid (must be debian-12 or el9)" ;;
+  debian-11|debian-12|el9) ;;
+  *) die "TARGET=$TARGET is invalid (must be debian-11, debian-12, or el9)" ;;
 esac
 
 # --- Paths ------------------------------------------------------------------
@@ -149,16 +149,26 @@ cd "$OUT_DIR"
 # Derive Depends/Requires from OTP_VERSION's major.minor (e.g. 26.2)
 OTP_MAJ_MIN="${OTP_VERSION%.*}"
 
+# Debian suite + native architecture for the .deb (arm64 builds run on
+# native arm64 runners, so dpkg reports the correct arch here).
 case "$TARGET" in
-  debian-12)
-    echo ">> Wrapping into .deb with fpm"
+  debian-11) DEB_SUITE=bullseye ;;
+  debian-12) DEB_SUITE=bookworm ;;
+  el9)       DEB_SUITE= ;;
+  *)         die "unknown TARGET for suite mapping: $TARGET" ;;
+esac
+DEB_ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
+
+case "$TARGET" in
+  debian-11|debian-12)
+    echo ">> Wrapping into .deb with fpm ($DEB_SUITE/$DEB_ARCH)"
     # No esl-erlang dependency: relx's tar-release bundles ERTS into
     # the release tarball, so the package is self-contained.
     fpm -s dir -t deb \
         --name kazoo \
         --version "$PKG_VERSION" \
-        --iteration "${PKG_REVISION}~bookworm1" \
-        --architecture amd64 \
+        --iteration "${PKG_REVISION}~${DEB_SUITE}1" \
+        --architecture "$DEB_ARCH" \
         --depends "adduser" \
         --depends "systemd" \
         --depends "libssl3" \
