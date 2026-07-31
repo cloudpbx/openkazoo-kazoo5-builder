@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl wget gnupg git openssh-client make build-essential \
       autoconf zip unzip xsltproc libxslt1-dev \
       libssl-dev libncurses-dev libsctp-dev \
-      libwxgtk3.2-dev \
+      libwxgtk3.0-gtk3-dev \
       python3 ruby ruby-dev rubygems \
       reprepro debsigs createrepo-c \
  && rm -rf /var/lib/apt/lists/*
