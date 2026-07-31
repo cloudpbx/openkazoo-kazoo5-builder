@@ -20,12 +20,17 @@ permissions:
 
 jobs:
   build:
-    name: build (${{ matrix.target }})
-    runs-on: ubuntu-latest
+    name: build (${{ matrix.target }}/${{ matrix.arch }})
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
-        target: [debian-12, el9]
+        include:
+          - { target: debian-12, arch: amd64, runs_on: ubuntu-latest }
+          - { target: debian-12, arch: arm64, runs_on: ubuntu-24.04-arm }
+          - { target: debian-11, arch: amd64, runs_on: ubuntu-latest }
+          - { target: debian-11, arch: arm64, runs_on: ubuntu-24.04-arm }
+          - { target: el9,       arch: amd64, runs_on: ubuntu-latest }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,7 +65,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: package-${{ matrix.target }}
+          name: package-${{ matrix.target }}-${{ matrix.arch }}
           path: build/out/*
           if-no-files-found: error
 
