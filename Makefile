@@ -20,7 +20,7 @@ REBAR_SHA256   := $(shell cat config/rebar.sha256)
 # --- Required per-invocation variable ---
 TARGET         ?=
 
-VALID_TARGETS  := debian-12 el9
+VALID_TARGETS  := debian-11 debian-12 el9
 
 # --- Build directories ---
 BUILD_DIR      := build
@@ -93,4 +93,4 @@ clean:  ## Remove build outputs (does NOT remove docker images)
 
 .PHONY: sparkly-clean
 sparkly-clean: clean  ## Also remove docker images
-	-docker image rm openkazoo-kazoo5-builder:debian-12 openkazoo-kazoo5-builder:el9 2>/dev/null
+	-docker image rm openkazoo-kazoo5-builder:debian-11 openkazoo-kazoo5-builder:debian-12 openkazoo-kazoo5-builder:el9 2>/dev/null

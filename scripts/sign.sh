@@ -2,7 +2,7 @@
 # sign.sh — sign built packages with GPG.
 #
 # Usage: sign.sh <target>
-#   target: debian-12 | el9
+#   target: debian-11 | debian-12 | el9
 #
 # Key source priority:
 #   1. $GPG_PRIVATE_KEY env var (ASCII-armored private key, CI mode)
@@ -15,9 +15,9 @@ set -euo pipefail
 die() { echo "ERROR: $*" >&2; exit 2; }
 
 TARGET="${1:-}"
-[ -n "$TARGET" ] || die "TARGET is required (debian-12 or el9)"
+[ -n "$TARGET" ] || die "TARGET is required (debian-11, debian-12, or el9)"
 case "$TARGET" in
-  debian-12|el9) ;;
+  debian-11|debian-12|el9) ;;
   *) die "TARGET=$TARGET is invalid" ;;
 esac
 
@@ -53,7 +53,7 @@ echo ">> Signing with key fingerprint: $FPR"
 # --- Sign packages ----------------------------------------------------------
 
 case "$TARGET" in
-  debian-12)
+  debian-11|debian-12)
     shopt -s nullglob
     DEBS=("$OUT_DIR"/kazoo_*.deb)
     shopt -u nullglob

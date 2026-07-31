@@ -1,0 +1,97 @@
+# syntax=docker/dockerfile:1.6
+# Build image for Debian 11 (bullseye) packages.
+#
+# OTP is compiled from source via kerl rather than installed from the
+# Erlang Solutions apt repo. Background: ESL retired
+# packages.erlang-solutions.com in mid-2026 and migrated to
+# binaries2.erlang-solutions.com, which only carries OTP 27.x for
+# Debian bookworm and has no Rocky 9 builds at all. Since kazoo5 pins
+# OTP 26.2 (per make/erlang_version) we build from source to get an
+# exact version match. relx's tar-release bundles ERTS into the
+# resulting tarball, so end-user packages don't need a runtime
+# Erlang installation either.
+
+FROM debian:11-slim
+
+ARG OTP_VERSION=26.2.5
+ARG REBAR_VERSION=3.23.0
+# SHA-256 pins for the network-fetched artifacts. Defaulted here (like the
+# version args above) and overridden by the Makefile from config/*.sha256 so
+# both `make docker-build` and a bare `docker build` verify the downloads.
+# These MUST track OTP_VERSION / REBAR_VERSION when either is bumped.
+ARG OTP_SHA256=de155c4ad9baab2b9e6c96dbd03bf955575a04dd6feee9c08758beb28484c9f6
+ARG REBAR_SHA256=195591a13abf6a337aecbbc4c9b33d3684b0f3b14c76e84c007baff38db20393
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Toolchain: build tools, packaging utilities, Ruby (for FPM),
+# Erlang/OTP build dependencies (no GUI/WX; that'd require X11 libs).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl wget gnupg git openssh-client make build-essential \
+      autoconf zip unzip xsltproc libxslt1-dev \
+      libssl-dev libncurses-dev libsctp-dev \
+      libwxgtk3.0-gtk3-dev \
+      python3 ruby ruby-dev rubygems \
+      reprepro debsigs createrepo-c \
+ && rm -rf /var/lib/apt/lists/*
+
+# kazoo5 fetches some applications via SSH URLs (git@github.com:2600hz/...).
+# In CI we don't have SSH credentials and the source repos are public,
+# so rewrite SSH GitHub URLs to HTTPS globally.
+RUN git config --global url."https://github.com/".insteadOf "git@github.com:" \
+ && git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+
+# Build OTP from source directly (no kerl). Plain
+# ./configure && make && make install gives full diagnostic output.
+# Build takes ~15-20 min on a GHA runner.
+RUN set -ex \
+ && curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+      "https://github.com/erlang/otp/releases/download/OTP-${OTP_VERSION}/otp_src_${OTP_VERSION}.tar.gz" \
+      -o /tmp/otp.tar.gz \
+ && echo "${OTP_SHA256}  /tmp/otp.tar.gz" | sha256sum -c - \
+ && mkdir -p /tmp/otp_build \
+ && tar -xzf /tmp/otp.tar.gz -C /tmp/otp_build --strip-components=1 \
+ && rm /tmp/otp.tar.gz \
+ && cd /tmp/otp_build \
+ && ./configure \
+      --prefix="/opt/erlang/${OTP_VERSION}" \
+      --disable-debug \
+      --disable-silent-rules \
+      --without-javac \
+      --without-jinterface \
+      --without-megaco \
+      --without-et \
+      --without-odbc \
+      --enable-threads \
+      --enable-shared-zlib \
+      --enable-ssl=dynamic-ssl-lib \
+      --enable-smp-support \
+      --enable-kernel-poll \
+      --enable-dynamic-ssl-lib \
+ && make -j"$(nproc)" \
+ && make install \
+ && cd / && rm -rf /tmp/otp_build \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/erl"     /usr/local/bin/erl  \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/erlc"    /usr/local/bin/erlc \
+ && ln -s "/opt/erlang/${OTP_VERSION}/bin/escript" /usr/local/bin/escript \
+ && erl -version
+
+# rebar3 (matches kazoo5/.tool-versions). Fetch the pinned binary from upstream.
+RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+      "https://github.com/erlang/rebar3/releases/download/${REBAR_VERSION}/rebar3" \
+      -o /usr/local/bin/rebar3 \
+ && echo "${REBAR_SHA256}  /usr/local/bin/rebar3" | sha256sum -c - \
+ && chmod +x /usr/local/bin/rebar3 \
+ && rebar3 --version
+
+# FPM for wrapping the relx tarball into .deb
+RUN gem install --no-document fpm:1.16.0
+
+# kazoo5's rel/relx.config.script references wx, observer, debugger in
+# the release manifest, so we build OTP with these enabled (WX requires
+# libwxgtk3.2-dev installed above).
+
+# Activate kerl's OTP install so child shells see erl/erlc/escript on PATH.
+ENV PATH="/opt/erlang/${OTP_VERSION}/bin:${PATH}"
+
+WORKDIR /work
+ENTRYPOINT ["/work/scripts/build.sh"]

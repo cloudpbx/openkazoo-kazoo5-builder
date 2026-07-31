@@ -31,6 +31,23 @@ sudo apt-get update
 sudo apt-get install -y kazoo
 ```
 
+## Debian 11 (bullseye)
+
+```bash
+# 1. Add the openkazoo repo
+curl -fsSL https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
+  | sudo tee /usr/share/keyrings/openkazoo.asc > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/openkazoo.asc] \
+https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian bullseye main" \
+  | sudo tee /etc/apt/sources.list.d/openkazoo.list
+
+# 2. Install
+sudo apt-get update
+sudo apt-get install -y kazoo
+```
+
+Both Debian suites are built for amd64 and arm64; apt selects the architecture automatically.
+
 ## Rocky Linux 9 / AlmaLinux 9 / RHEL 9
 
 ```bash

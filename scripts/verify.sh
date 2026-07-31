@@ -2,7 +2,7 @@
 # verify.sh — smoke-test built packages.
 #
 # Usage: verify.sh <target>
-#   target: debian-12 | el9
+#   target: debian-11 | debian-12 | el9
 #
 # Asserts:
 #   - At least one matching package exists in build/out/
@@ -16,13 +16,13 @@ die() { echo "ERROR: $*" >&2; exit 2; }
 ok()  { echo "  OK: $*"; }
 
 TARGET="${1:-}"
-[ -n "$TARGET" ] || die "TARGET is required (debian-12 or el9)"
+[ -n "$TARGET" ] || die "TARGET is required (debian-11, debian-12, or el9)"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="$REPO_ROOT/build/out"
 
 case "$TARGET" in
-  debian-12)
+  debian-11|debian-12)
     shopt -s nullglob
     DEBS=("$OUT_DIR"/kazoo_*.deb)
     shopt -u nullglob
