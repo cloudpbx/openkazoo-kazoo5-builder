@@ -12,13 +12,22 @@ permissions:
   contents: read
 
 jobs:
-  install-debian-12:
+  install-debian:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
-    runs-on: ubuntu-latest
+    name: install-debian (${{ matrix.suite }}/${{ matrix.arch }})
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { suite: bookworm, image: 'debian:12-slim', arch: amd64, runs_on: ubuntu-latest }
+          - { suite: bookworm, image: 'debian:12-slim', arch: arm64, runs_on: ubuntu-24.04-arm }
+          - { suite: bullseye, image: 'debian:11-slim', arch: amd64, runs_on: ubuntu-latest }
+          - { suite: bullseye, image: 'debian:11-slim', arch: arm64, runs_on: ubuntu-24.04-arm }
     steps:
       - name: Install from published apt repo
         run: |
-          docker run --rm debian:12-slim bash -e -c '
+          docker run --rm ${{ matrix.image }} bash -e -c '
             set -euxo pipefail
             apt-get update
             apt-get install -y --no-install-recommends ca-certificates curl gnupg
@@ -32,7 +41,7 @@ jobs:
               https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
               -o /usr/share/keyrings/openkazoo.asc
             echo "deb [signed-by=/usr/share/keyrings/openkazoo.asc] \
-              https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian bookworm main" \
+              https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian ${{ matrix.suite }} main" \
               > /etc/apt/sources.list.d/openkazoo.list
 
             apt-get update
@@ -43,7 +52,7 @@ jobs:
             test -f /lib/systemd/system/kazoo.service
             test -f /etc/default/kazoo
             id kazoo >/dev/null
-            echo "OK: kazoo installs cleanly on Debian 12"
+            echo "OK: kazoo installs cleanly on ${{ matrix.suite }}/${{ matrix.arch }}"
           '
 
   install-rocky-9:
@@ -85,14 +94,23 @@ jobs:
   # runtime defects (missing libs, malformed sys.config, broken bin
   # script, etc.) that file-placement tests miss.
 
-  boot-test-debian-12:
+  boot-test-debian:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
-    runs-on: ubuntu-latest
-    needs: install-debian-12
+    name: boot-test-debian (${{ matrix.suite }}/${{ matrix.arch }})
+    runs-on: ${{ matrix.runs_on }}
+    needs: install-debian
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { suite: bookworm, image: 'debian:12-slim', arch: amd64, runs_on: ubuntu-latest }
+          - { suite: bookworm, image: 'debian:12-slim', arch: arm64, runs_on: ubuntu-24.04-arm }
+          - { suite: bullseye, image: 'debian:11-slim', arch: amd64, runs_on: ubuntu-latest }
+          - { suite: bullseye, image: 'debian:11-slim', arch: arm64, runs_on: ubuntu-24.04-arm }
     steps:
       - name: Boot kazoo and verify BEAM stays up
         run: |
-          docker run --rm debian:12-slim bash -e -c '
+          docker run --rm ${{ matrix.image }} bash -e -c '
             set -euxo pipefail
             apt-get update
             apt-get install -y --no-install-recommends \
@@ -102,7 +120,7 @@ jobs:
               https://cloudpbx.github.io/openkazoo-kazoo5-builder/pubkey.asc \
               -o /usr/share/keyrings/openkazoo.asc
             echo "deb [signed-by=/usr/share/keyrings/openkazoo.asc] \
-              https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian bookworm main" \
+              https://cloudpbx.github.io/openkazoo-kazoo5-builder/debian ${{ matrix.suite }} main" \
               > /etc/apt/sources.list.d/openkazoo.list
             apt-get update
             apt-get install -y --no-install-recommends kazoo
@@ -280,7 +298,7 @@ jobs:
   boot-test-phase2-debian-12:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     runs-on: ubuntu-latest
-    needs: boot-test-debian-12
+    needs: boot-test-debian
     steps:
       - name: Stand up sidecars and verify kazoo connects
         run: |
